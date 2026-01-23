@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Play, Plus, Server } from 'lucide-react';
+import { Play, Gamepad2, ShieldCheck, Hammer } from 'lucide-react';
 import { sfx } from '../services/audio';
 import { RepositoryFactory } from '../services/storage';
 import { WorldGenerator } from '../services/world-generator';
@@ -14,25 +14,36 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onJoinFamily }) => {
   const [formData, setFormData] = useState({ world: '', child: '', pin: '', joinCode: '' });
   const [loading, setLoading] = useState(false);
 
-  const updateForm = (k: string, v: string) => setFormData(prev => ({...prev, [k]: v}));
-
+  // Quick setup com seed gerada
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.world || !formData.child || formData.pin.length < 4) { sfx.play('error'); return; }
     
     setLoading(true);
     sfx.play('click');
+    
+    // Gera um código divertido ex: SUPER-CREEPER-99
     const newCode = WorldGenerator.generateSeed();
+    
     try {
         const repo = RepositoryFactory.createFamilyContext(newCode);
         await repo.profile.save({
             name: formData.child, emeralds: 0, diamonds: 0, hp: 100, maxHp: 100,
-            level: 1, experience: 0, streak: 0, inventory: {}, worldBlocks: [], rank: 'Aldeão', sensoryMode: 'standard', showDayMap: true
+            level: 1, experience: 0, streak: 0, inventory: {}, worldBlocks: [], 
+            rank: 'Novato', sensoryMode: 'standard', showDayMap: true
         });
-        await repo.settings.save({ familyName: formData.world, parentPin: formData.pin, rules: { allowShop: true, allowBuilder: true, xpMultiplier: 1, damageMultiplier: 1, requireEvidence: true } });
+        await repo.settings.save({ 
+            familyName: formData.world, 
+            parentPin: formData.pin, 
+            rules: { allowShop: true, allowBuilder: true, xpMultiplier: 1, damageMultiplier: 1, requireEvidence: true } 
+        });
+        
         sfx.play('levelup');
         onJoinFamily(newCode);
-    } catch { sfx.play('error'); } 
+    } catch { 
+        sfx.play('error'); 
+        alert("Erro ao criar mundo. Tente novamente.");
+    } 
     setLoading(false);
   };
 
@@ -44,83 +55,95 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onJoinFamily }) => {
   };
 
   return (
-    <div className="min-h-screen relative flex flex-col items-center justify-center p-6 transition-all duration-1000 overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-[#81D4FA]">
       
-      {/* Background Panorama Simulado */}
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 animate-pulse pointer-events-none"></div>
+      {/* Background Decorativo */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full blur-2xl"></div>
+          <div className="absolute bottom-20 right-10 w-48 h-48 bg-yellow-300 rounded-full blur-3xl"></div>
+      </div>
 
-      <div className="relative z-10 w-full max-w-sm flex flex-col items-center gap-8">
+      <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-8 animate-pop">
         
-        {/* LOGO MINECRAFT STYLE */}
-        <div className="text-center">
-            <h1 className="font-game text-6xl md:text-8xl text-white drop-shadow-[4px_4px_0_#000] tracking-widest transform -rotate-2" 
-                style={{ fontFamily: "'VT323', monospace", textShadow: "4px 4px 0 #3f3f3f, 6px 6px 0 #000" }}>
-                QUEST
+        {/* LOGO TEMÁTICO */}
+        <div className="flex flex-col items-center rotate-[-2deg]">
+            <h1 className="text-title text-7xl text-white drop-shadow-[4px_4px_0_#000] leading-none tracking-wider text-stroke-3">
+                MINE<span className="text-[#AEEA00]">TASK</span>
             </h1>
-            <h1 className="font-game text-6xl md:text-8xl text-[#50e4e8] drop-shadow-[4px_4px_0_#000] tracking-widest transform rotate-2 -mt-4"
-                style={{ fontFamily: "'VT323', monospace", textShadow: "4px 4px 0 #2c9ba0, 6px 6px 0 #000" }}>
-                CRAFT
-            </h1>
-            <p className="font-game text-[#ffff55] text-xl mt-2 animate-bounce mc-shadow-text">v4.0 RPG EDITION</p>
+            <div className="bg-[#FF6D00] text-white text-title px-4 py-1 rounded-full border-2 border-black rotate-[4deg] -mt-2 shadow-lg">
+                Adventure Edition
+            </div>
         </div>
 
         {mode === 'MENU' && (
-            <div className="flex flex-col gap-4 w-full w-64">
-                <button onClick={() => setMode('CREATE')} className="mc-button mc-btn-green w-full group">
-                    <Plus size={24} className="mr-2"/> NOVO MUNDO
+            <div className="w-full flex flex-col gap-4">
+                <button onClick={() => setMode('CREATE')} className="toon-btn btn-success w-full group">
+                    <div className="bg-white/30 p-2 rounded-lg border-2 border-black/10 group-hover:rotate-12 transition-transform">
+                        <Hammer size={24}/>
+                    </div>
+                    <span>Criar Novo Mundo</span>
                 </button>
-                <button onClick={() => setMode('JOIN')} className="mc-button mc-btn-stone w-full group">
-                    <Server size={24} className="mr-2"/> MULTIPLAYER
+                
+                <button onClick={() => setMode('JOIN')} className="toon-btn btn-info w-full group">
+                    <div className="bg-white/30 p-2 rounded-lg border-2 border-black/10 group-hover:-rotate-12 transition-transform">
+                        <Gamepad2 size={24}/>
+                    </div>
+                    <span>Entrar no Servidor</span>
                 </button>
             </div>
         )}
 
         {mode === 'CREATE' && (
-            <div className="mc-panel w-full p-1 animate-pop">
-                <div className="bg-[#212121] text-white p-2 text-center border-b-2 border-white/10 mb-4">
-                    <h2 className="mc-title-game text-xl">Criar Novo Servidor</h2>
+            <div className="toon-card w-full p-6">
+                <div className="text-center mb-6">
+                    <h2 className="text-title text-3xl text-[#FF6D00]">Setup da Aventura</h2>
+                    <p className="text-sm font-bold opacity-60">Prepare-se para começar!</p>
                 </div>
                 
-                <form onSubmit={handleCreate} className="flex flex-col gap-4 p-2">
+                <form onSubmit={handleCreate} className="flex flex-col gap-4">
                     <div>
-                        <label className="text-xs font-bold text-[#555] uppercase block mb-1">Nome do Reino</label>
-                        <input className="mc-input w-full" placeholder="Ex: Reino Silva" value={formData.world} onChange={e=>updateForm('world', e.target.value)} required/>
+                        <label className="text-xs font-bold uppercase ml-2 mb-1 block">Nome do Reino</label>
+                        <input className="toon-input" placeholder="Ex: Casa do Lucas" value={formData.world} onChange={e=>setFormData({...formData, world: e.target.value})} required/>
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-[#555] uppercase block mb-1">Nick do Herói</label>
-                        <input className="mc-input w-full" placeholder="Steve" value={formData.child} onChange={e=>updateForm('child', e.target.value)} required/>
+                        <label className="text-xs font-bold uppercase ml-2 mb-1 block">Herói (Criança)</label>
+                        <input className="toon-input" placeholder="Steve / Alex" value={formData.child} onChange={e=>setFormData({...formData, child: e.target.value})} required/>
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-[#555] uppercase block mb-1">PIN do Admin</label>
-                        <input className="mc-input w-full text-center tracking-[0.5em]" type="tel" maxLength={4} placeholder="0000" value={formData.pin} onChange={e=>updateForm('pin', e.target.value.replace(/\D/g,''))} required/>
+                        <label className="text-xs font-bold uppercase ml-2 mb-1 block">Senha Mestre (PIN)</label>
+                        <input className="toon-input text-center tracking-[10px]" type="tel" maxLength={4} placeholder="0000" value={formData.pin} onChange={e=>setFormData({...formData, pin: e.target.value.replace(/\D/g,'')})} required/>
                     </div>
-                    <div className="flex gap-2 mt-2">
-                        <button type="button" onClick={() => setMode('MENU')} className="mc-button mc-btn-red flex-1 text-sm">VOLTAR</button>
-                        <button type="submit" disabled={loading} className="mc-button mc-btn-green flex-[2]">CRIAR MUNDO</button>
+                    
+                    <div className="flex gap-3 mt-2">
+                        <button type="button" onClick={() => setMode('MENU')} className="toon-btn bg-gray-200 flex-1 text-sm">Voltar</button>
+                        <button type="submit" disabled={loading} className="toon-btn btn-primary flex-[2]">
+                            {loading ? 'Gerando...' : 'INICIAR!'}
+                        </button>
                     </div>
                 </form>
             </div>
         )}
 
         {mode === 'JOIN' && (
-            <div className="mc-panel w-full p-1 animate-pop">
-                 <div className="bg-[#212121] text-white p-2 text-center border-b-2 border-white/10 mb-4">
-                    <h2 className="mc-title-game text-xl">Conexão Direta</h2>
+            <div className="toon-card w-full p-6">
+                 <div className="text-center mb-6">
+                    <h2 className="text-title text-3xl text-[#00B0FF]">Conectar</h2>
+                    <p className="text-sm font-bold opacity-60">Insira o código da família</p>
                  </div>
-                 <form onSubmit={handleJoin} className="flex flex-col gap-4 p-2">
-                    <label className="text-xs font-bold text-[#555] uppercase block -mb-3">Endereço do Servidor</label>
-                    <input className="mc-input w-full text-center uppercase tracking-wider text-[#3b82f6]" placeholder="XXX-YYY-99" value={formData.joinCode} onChange={e=>updateForm('joinCode', e.target.value.toUpperCase())} autoFocus/>
-                    <div className="flex gap-2 mt-2">
-                        <button type="button" onClick={() => setMode('MENU')} className="mc-button mc-btn-red flex-1 text-sm">CANCELAR</button>
-                        <button type="submit" className="mc-button mc-btn-stone flex-[2]">ENTRAR</button>
+                 <form onSubmit={handleJoin} className="flex flex-col gap-4">
+                    <input className="toon-input text-center uppercase text-2xl h-20 text-[#00B0FF]" placeholder="XXX-YYY-00" value={formData.joinCode} onChange={e=>setFormData({...formData, joinCode: e.target.value.toUpperCase()})} autoFocus/>
+                    <div className="flex gap-3 mt-2">
+                        <button type="button" onClick={() => setMode('MENU')} className="toon-btn bg-gray-200 flex-1 text-sm">Voltar</button>
+                        <button type="submit" className="toon-btn btn-success flex-[2]">CONECTAR</button>
                     </div>
                  </form>
             </div>
         )}
+
       </div>
       
-      <div className="absolute bottom-2 text-[#555] font-game text-sm">
-          Copyright Mojang AB (Brincadeira, é fan made!)
+      <div className="absolute bottom-4 text-xs font-bold text-black/40 text-center">
+          Feito com ❤️ para Super-Heróis Reais
       </div>
     </div>
   );

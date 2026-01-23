@@ -1,85 +1,43 @@
-
+import { db } from './firebase';
+import { ref, onValue, set, push, get } from 'firebase/database';
 import { IRepository, ServerMessage, WorldActivity, GlobalGoal } from '../types';
 
-// Event bus for local updates to sync within the same session
-class LocalBus {
-  private listeners: Record<string, Function[]> = {};
-  
-  emit(key: string, data: any) {
-    if (this.listeners[key]) {
-      this.listeners[key].forEach(cb => cb(data));
-    }
-  }
-
-  subscribe(key: string, cb: Function) {
-    if (!this.listeners[key]) this.listeners[key] = [];
-    this.listeners[key].push(cb);
-    return () => {
-      this.listeners[key] = this.listeners[key].filter(l => l !== cb);
-    };
-  }
-}
-const bus = new LocalBus();
-
-export class LocalRepository<T> implements IRepository<T> {
-  constructor(private key: string, private defaultValue: T) {}
+export class FirebaseRepository<T> implements IRepository<T> {
+  constructor(private path: string, private defaultValue: T) {}
 
   subscribe(callback: (data: T) => void): () => void {
-    // Initial call
-    this.get().then(data => callback(data));
-    
-    // Subscribe to internal bus
-    const unsubBus = bus.subscribe(this.key, callback);
-    
-    // Subscribe to storage events (cross-tab sync)
-    const handleStorage = (e: StorageEvent) => {
-        if (e.key === this.key && e.newValue) {
-            callback(JSON.parse(e.newValue));
-        }
-    };
-    window.addEventListener('storage', handleStorage);
-    
-    return () => {
-        unsubBus();
-        window.removeEventListener('storage', handleStorage);
-    };
+    const dbRef = ref(db, this.path);
+    return onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      callback(data === null ? this.defaultValue : data);
+    });
   }
 
   async save(data: T): Promise<void> {
-    localStorage.setItem(this.key, JSON.stringify(data));
-    bus.emit(this.key, data);
-  }
-
-  private async get(): Promise<T> {
-    const val = localStorage.getItem(this.key);
-    return val ? JSON.parse(val) : this.defaultValue;
+    const dbRef = ref(db, this.path);
+    await set(dbRef, data);
   }
 
   async addToList(item: any): Promise<void> {
-    const list = (await this.get()) as any;
-    const newItem = { ...item, id: item.id || Date.now().toString() };
-    
-    if (Array.isArray(list)) {
-        const newList = [...list, newItem];
-        await this.save(newList as any);
-    } else {
-        const currentList = list ? Object.values(list) : [];
-        await this.save([...currentList, newItem] as any);
-    }
+    const dbRef = ref(db, this.path);
+    const newRef = push(dbRef);
+    await set(newRef, { ...item, id: newRef.key });
   }
 
   async exists(): Promise<boolean> {
-    return localStorage.getItem(this.key) !== null;
+    const dbRef = ref(db, this.path);
+    const snapshot = await get(dbRef);
+    return snapshot.exists();
   }
 }
 
 export class RepositoryFactory {
   static createFamilyContext(familyId: string) {
-    const root = `minetask_${familyId}`;
+    const root = `families/${familyId}`;
     return {
-      root: new LocalRepository<any>(root, null),
-      tasks: new LocalRepository<any[]>(`${root}_tasks`, []),
-      profile: new LocalRepository<any>(`${root}_profile`, {
+      root: new FirebaseRepository<any>(root, null),
+      tasks: new FirebaseRepository<any[]>(`${root}/tasks`, []),
+      profile: new FirebaseRepository<any>(`${root}/profile`, {
         name: 'Herói',
         emeralds: 0,
         diamonds: 0,
@@ -94,12 +52,12 @@ export class RepositoryFactory {
         sensoryMode: 'standard',
         showDayMap: true
       }),
-      rewards: new LocalRepository<any[]>(`${root}_rewards`, [
+      rewards: new FirebaseRepository<any[]>(`${root}/rewards`, [
         { id: '1', title: 'Bloco de Grama', cost: 10, currency: 'emerald', icon: '🌱', type: 'block', blockColor: '#58a034' },
         { id: '2', title: 'Bloco de Pedra', cost: 20, currency: 'emerald', icon: '🪨', type: 'block', blockColor: '#8b8b8b' },
         { id: '3', title: 'Tempo Extra (15min)', cost: 5, currency: 'diamond', icon: '⏳', type: 'real_life' }
       ]),
-      settings: new LocalRepository<any>(`${root}_settings`, { 
+      settings: new FirebaseRepository<any>(`${root}/settings`, { 
         parentPin: '1234', 
         familyName: 'Novo Mundo',
         rules: {
@@ -110,9 +68,9 @@ export class RepositoryFactory {
             requireEvidence: true
         }
       }),
-      messages: new LocalRepository<ServerMessage[]>(`${root}_messages`, []),
-      activities: new LocalRepository<WorldActivity[]>(`${root}_activities`, []),
-      globalGoal: new LocalRepository<GlobalGoal>(`${root}_goal`, { title: 'Passeio Especial', targetEmeralds: 1000, currentEmeralds: 0 })
+      messages: new FirebaseRepository<ServerMessage[]>(`${root}/messages`, []),
+      activities: new FirebaseRepository<WorldActivity[]>(`${root}/activities`, []),
+      globalGoal: new FirebaseRepository<GlobalGoal>(`${root}/goal`, { title: 'Passeio Especial', targetEmeralds: 1000, currentEmeralds: 0 })
     };
   }
 }

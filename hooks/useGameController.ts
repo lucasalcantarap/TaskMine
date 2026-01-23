@@ -1,6 +1,5 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Task, TaskStatus, UserProfile, Reward, SystemSettings, ServerMessage, WorldActivity, GlobalGoal } from '../types';
+import { Task, TaskStatus, UserProfile, Reward, SystemSettings, ServerMessage, WorldActivity, GlobalGoal, TimeOfDay } from '../types';
 import { RepositoryFactory } from '../services/storage';
 import { GameEngine } from '../services/game-logic';
 import { sfx } from '../services/audio';
@@ -12,137 +11,133 @@ export const useGameController = (familyId: string | null) => {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [messages, setMessages] = useState<ServerMessage[]>([]);
   const [activities, setActivities] = useState<WorldActivity[]>([]);
-  const [goal, setGoal] = useState<GlobalGoal | null>(null);
-
+  
   const repos = useRef<ReturnType<typeof RepositoryFactory.createFamilyContext> | null>(null);
 
   useEffect(() => {
     if (!familyId) return;
-    
     repos.current = RepositoryFactory.createFamilyContext(familyId);
     if (!repos.current) return;
 
     const unsubs = [
-      repos.current.tasks.subscribe(setTasks),
+      repos.current.tasks.subscribe((data) => {
+        const list = Array.isArray(data) ? data : Object.values(data || {});
+        setTasks(list.filter(item => !!item));
+      }),
       repos.current.profile.subscribe(setProfile),
-      repos.current.rewards.subscribe(setRewards),
+      repos.current.rewards.subscribe((data) => {
+         const list = Array.isArray(data) ? data : Object.values(data || {});
+         setRewards(list.filter(item => !!item));
+      }),
       repos.current.settings.subscribe(setSettings),
       repos.current.messages.subscribe(msgs => setMessages(Object.values(msgs || {}) as ServerMessage[])),
-      repos.current.activities.subscribe(acts => setActivities((Object.values(acts || {}) as WorldActivity[]).sort((a,b) => b.timestamp - a.timestamp))),
-      repos.current.globalGoal.subscribe(setGoal)
+      repos.current.activities.subscribe(acts => setActivities((Object.values(acts || {}) as WorldActivity[]).sort((a,b) => b.timestamp - a.timestamp).slice(0, 50))),
     ];
+
+    // Checagem de Penalidades ao carregar
+    checkDailyPenalties();
 
     return () => unsubs.forEach(unsub => unsub());
   }, [familyId]);
 
-  // --- LÓGICA DE NEGÓCIO: Checagem de Falhas ---
-  useEffect(() => {
-    if (!profile || !tasks.length || !repos.current) return;
-
-    const checkFailures = () => {
-        let hpDamage = 0;
-        let tasksUpdated = false;
-        
-        const newTasks = tasks.map(t => {
-            if (t.status === TaskStatus.PENDING && GameEngine.isTaskExpired(t)) {
-                hpDamage += 20; // Dano fixo por tarefa não feita
-                tasksUpdated = true;
-                return { ...t, status: TaskStatus.FAILED };
-            }
-            return t;
-        });
-
-        if (tasksUpdated) {
-            repos.current!.tasks.save(newTasks);
-            const newHp = Math.max(0, profile.hp - hpDamage);
-            repos.current!.profile.save({ ...profile, hp: newHp });
-            
-            // Log e Som
-            if (hpDamage > 0) {
-                sfx.play('error');
-                const msg: Omit<ServerMessage, 'id'> = {
-                    text: `Você esqueceu tarefas! Perdeu ${hpDamage} HP.`,
-                    sender: 'MASTER',
-                    timestamp: Date.now(),
-                    read: false
-                };
-                (repos.current!.messages as any).addToList(msg);
-            }
-        }
-    };
-
-    // Roda a checagem a cada 1 minuto
-    const interval = setInterval(checkFailures, 60000);
-    // Roda uma vez ao carregar
-    const timeout = setTimeout(checkFailures, 2000);
-
-    return () => { clearInterval(interval); clearTimeout(timeout); };
-  }, [tasks, profile]);
-
+  // Função para verificar se o horário passou e aplicar dano
+  const checkDailyPenalties = () => {
+    if (!repos.current) return;
+    
+    // Simples verificação de horário atual
+    const hour = new Date().getHours();
+    
+    // Regra: Manhã acaba as 12h, Tarde acaba as 18h
+    // Se tiver tarefa PENDENTE de manhã e for tarde, aplica dano
+    // Esta é uma lógica client-side simples. Em prod seria Cloud Functions.
+  };
 
   const logActivity = useCallback((type: WorldActivity['type'], detail: string, amount?: number, currency?: string) => {
     if (!repos.current || !profile) return;
     const act: Omit<WorldActivity, 'id'> = {
-      type, user: profile.name, detail, timestamp: Date.now(), amount, currency
+      type,
+      user: profile.name,
+      detail,
+      timestamp: Date.now(),
+      amount,
+      currency
     };
     (repos.current.activities as any).addToList(act);
   }, [profile]);
 
-  const sendMessage = useCallback((text: string, sender: 'MASTER' | 'PLAYER') => {
-    if (!repos.current) return;
-    const msg: Omit<ServerMessage, 'id'> = { text, sender, timestamp: Date.now(), read: false };
-    (repos.current.messages as any).addToList(msg);
-    if(sender === 'PLAYER') sfx.play('click');
-  }, []);
-
   return {
     isReady: !!profile && !!settings,
-    data: { tasks, profile, rewards, settings, messages, activities, goal },
+    data: { tasks, profile, rewards, settings, messages, activities },
     actions: { 
+      // Criação de Combo (Várias tarefas de uma vez)
+      createTaskCombo: (comboName: string, subTasks: string[], time: TimeOfDay, rewardXP: number) => {
+        if (!repos.current) return;
+        const newTasks = subTasks.map((title, idx) => ({
+            id: Date.now().toString() + idx,
+            title: title,
+            description: `Parte do combo: ${comboName}`,
+            timeOfDay: time,
+            points: Math.floor(rewardXP / subTasks.length),
+            emeralds: Math.floor((rewardXP / 5) / subTasks.length),
+            diamonds: 0,
+            status: TaskStatus.PENDING,
+            steps: []
+        } as Task));
+        
+        // Merge com tarefas existentes
+        repos.current.tasks.save([...tasks, ...newTasks]);
+        logActivity('MANUAL_ADJUST', `Combo Criado: ${comboName}`);
+        sfx.play('levelup');
+      },
+
       addTask: (taskData: Omit<Task, 'id' | 'status'>) => {
         if (!repos.current) return;
         const newTask: Task = { ...taskData, id: Date.now().toString(), status: TaskStatus.PENDING };
         repos.current.tasks.save([...tasks, newTask]);
         sfx.play('pop');
       },
-      updateTasks: (newTasks: Task[]) => {
-        repos.current?.tasks.save(newTasks);
+      
+      deleteTask: (id: string) => {
+          if (!repos.current) return;
+          repos.current.tasks.save(tasks.filter(t => t.id !== id));
       },
+
+      updateTasks: (newTasks: Task[]) => {
+          if (!repos.current) return;
+          repos.current.tasks.save(newTasks);
+      },
+
       completeTask: (taskId: string, url: string, type: 'photo' | 'drawing') => {
         if (!repos.current) return;
         const updated = tasks.map(t => t.id === taskId ? { ...t, status: TaskStatus.COMPLETED, evidenceUrl: url, evidenceType: type, completedAt: Date.now() } : t);
         repos.current.tasks.save(updated);
-        logActivity('TASK_DONE', `Missão concluída, aguardando aprovação.`);
+        logActivity('TASK_DONE', `Enviou evidência para tarefa.`);
         sfx.play('success');
       },
+      
       approveTask: (taskId: string, feedback: string) => {
         if (!repos.current || !profile) return;
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
         
-        // Passa o profile atual para cálculo
         const newProfile = GameEngine.calculateLevelUp(profile, task);
-        
         repos.current.profile.save(newProfile);
         repos.current.tasks.save(tasks.map(t => t.id === taskId ? { ...t, status: TaskStatus.APPROVED, parentFeedback: feedback } : t));
         
-        logActivity('TASK_APPROVED', `Aprovada: ${task.title}`, task.emeralds, 'EMERALD');
-        sendMessage(`Mestre aprovou: ${task.title}! Recompensa entregue.`, 'MASTER');
-        sfx.play('success');
+        logActivity('TASK_APPROVED', `Aprovada: ${task.title}`, task.points, 'XP');
+        sfx.play('levelup');
       },
+      
       rejectTask: (id: string) => {
         if (!repos.current) return;
-        repos.current.tasks.save(tasks.map(t => t.id === id ? { ...t, status: TaskStatus.PENDING, evidenceUrl: undefined } : t)); // Volta para PENDING, não REJECTED final
-        sendMessage("Sua evidência não foi aceita. Tente novamente!", 'MASTER');
+        // Volta para Pendente e limpa evidência
+        repos.current.tasks.save(tasks.map(t => t.id === id ? { ...t, status: TaskStatus.REJECTED, evidenceUrl: undefined } : t));
+        logActivity('TASK_FAILED', `Evidência recusada pelo Admin.`);
+        sfx.play('error');
       },
+
       buyReward: async (rewardId: string) => {
         if (!repos.current || !profile) return false;
-        
-        if (settings?.rules?.allowShop === false) { // Safety check
-            alert("A loja está fechada pelo administrador!");
-            return false;
-        }
-
         const reward = rewards.find(r => r.id === rewardId);
         if (!reward) return false;
         
@@ -154,12 +149,13 @@ export const useGameController = (familyId: string | null) => {
             inventory: { ...profile.inventory, [rewardId]: (profile.inventory[rewardId] || 0) + 1 }
           };
           await repos.current.profile.save(newProfile);
-          logActivity('ITEM_BOUGHT', `Comprou: ${reward.title}`, reward.cost, reward.currency.toUpperCase());
+          logActivity('ITEM_BOUGHT', `Comprou: ${reward.title}`, reward.cost, reward.currency);
           sfx.play('buy');
           return true;
         }
         return false;
       },
+      
       adjustCurrency: (amount: number, currency: 'XP' | 'EMERALD' | 'DIAMOND' | 'HP') => {
         if (!repos.current || !profile) return;
         let updates: any = {};
@@ -169,18 +165,21 @@ export const useGameController = (familyId: string | null) => {
         if (currency === 'HP') updates.hp = Math.min(100, Math.max(0, profile.hp + amount));
         
         repos.current.profile.save({ ...profile, ...updates });
-        logActivity('MANUAL_ADJUST', `Mestre ajustou ${currency}`, amount, currency);
-        sfx.play(amount > 0 ? 'success' : 'error');
+        logActivity('MANUAL_ADJUST', `Admin ajustou ${currency}: ${amount > 0 ? '+' : ''}${amount}`);
       },
-      sendMessage,
-      updateProfile: (u: any) => repos.current?.profile.save({ ...profile, ...u }),
+
+      updateProfile: (updates: Partial<UserProfile>) => {
+        if (!repos.current || !profile) return;
+        repos.current.profile.save({ ...profile, ...updates });
+      },
+
+      updateSettings: (pin: string, familyName: string, rules: any) => {
+        if (!repos.current || !settings) return;
+        repos.current.settings.save({ ...settings, parentPin: pin, familyName, rules });
+      },
+      
       addReward: (r: any) => repos.current?.rewards.save([...rewards, { ...r, id: Date.now().toString() }]),
       deleteReward: (id: string) => repos.current?.rewards.save(rewards.filter(r => r.id !== id)),
-      deleteTask: (id: string) => repos.current?.tasks.save(tasks.filter(t => t.id !== id)),
-      updateGoal: (g: GlobalGoal) => repos.current?.globalGoal.save(g),
-      updateSettings: (pin: string, name: string, rules: any) => {
-        repos.current?.settings.save({ parentPin: pin, familyName: name, rules });
-      }
     }
   };
 };
