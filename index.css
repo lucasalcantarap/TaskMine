@@ -4,105 +4,157 @@
 @tailwind utilities;
 
 :root {
-  --dg-bg: #111111;
-  --dg-panel: #2b2b2b;
-  --dg-border: #000000;
-  --dg-text: #b0b0b0;
-  --dg-accent: #5e5e5e;
+  /* Plastic Voxel Palette */
+  --bg-sky: #8fd3fe; /* Minecraft Day Sky */
+  --bg-void: #1e1b26; /* End Dimension Dark */
   
-  --c-stone: #3a3a3a;
-  --c-mossy: #2f4f2f;
-  --c-nether: #4a1c1c;
-  --c-gold: #cfaa33;
-  --c-diamond: #4deeea;
+  /* Materials */
+  --mat-grass-top: #58bf58;
+  --mat-grass-side: #4ca34c;
+  --mat-dirt: #8b5e3c;
+  --mat-stone: #7d7d7d;
+  --mat-wood: #a07449;
+  --mat-wood-dark: #6d4e34;
+  --mat-diamond: #4deeea;
+  --mat-gold: #ffd700;
   
+  /* Magic Cat Accents */
+  --magic-purple: #8e44ad;
+  --magic-pink: #ff79c6;
+
+  /* UI Elements */
+  --ui-border: #2c2c2c; /* Outline grossa cartoon */
+  --ui-shadow: rgba(0,0,0,0.4);
+
+  --font-body: 'Fredoka', sans-serif;
   --font-pixel: 'VT323', monospace;
+  --font-display: 'Bangers', cursive;
 }
 
 body {
-    font-family: var(--font-pixel);
-    background-color: var(--dg-bg);
-    /* Dungeon Wall Pattern */
+    font-family: var(--font-body);
+    background-color: var(--bg-sky);
+    /* Pixel Pattern Background */
     background-image: 
-        linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)),
-        url("data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h32v32H0V0zm32 32h32v32H32V32z' fill='%23333333' fill-opacity='0.4'/%3E%3C/svg%3E");
-    color: white;
-    -webkit-font-smoothing: none;
+        linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+    color: #1a1a1a;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
 }
 
-/* --- DUNGEON UI SYSTEM --- */
-
-/* Painel de Pedra */
-.dungeon-panel {
-    background-color: var(--dg-panel);
-    border: 4px solid var(--dg-border);
-    box-shadow: inset 4px 4px 0px rgba(255,255,255,0.05), inset -4px -4px 0px rgba(0,0,0,0.5);
-    image-rendering: pixelated;
-    color: var(--dg-text);
-}
-
-/* Slot de Inventário (Card) */
-.dungeon-slot {
-    background-color: #1e1e1e;
-    border: 2px solid #555;
-    box-shadow: inset 2px 2px 0px #000, inset -2px -2px 0px #333;
-    transition: all 0.1s;
-}
-
-.dungeon-slot:active {
-    border-color: #fff;
-}
-
-/* Botões RPG */
-.dungeon-btn {
-    font-family: var(--font-pixel);
+h1, h2, h3, .font-display {
+    font-family: var(--font-display);
     text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-shadow: 2px 2px 0px #fff, 4px 4px 0px rgba(0,0,0,0.2);
+}
+
+.font-pixel {
+    font-family: var(--font-pixel);
+}
+
+/* --- VOXEL UI SYSTEM --- */
+
+/* Generic Voxel Panel */
+.panel-game {
+    background: #f0f0f0;
+    border: 4px solid var(--ui-border);
+    border-radius: 12px;
+    box-shadow: 6px 6px 0px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Wood Panel Variation */
+.panel-wood {
+    background-color: var(--mat-wood);
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px);
+    border-color: var(--mat-wood-dark);
+    color: #3e2723;
+}
+
+/* Stone Panel Variation */
+.panel-stone {
+    background-color: var(--mat-stone);
+    border-color: #555;
     color: #fff;
-    text-shadow: 2px 2px 0px #000;
-    border: 2px solid #000;
-    box-shadow: inset 2px 2px 0px rgba(255,255,255,0.2), inset -2px -4px 0px rgba(0,0,0,0.4);
-    cursor: pointer;
+    background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 10%, transparent 10%);
+    background-size: 20px 20px;
+}
+
+/* 3D Block Buttons */
+.btn-game {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    padding: 0.8rem 1.5rem;
+    border: 3px solid var(--ui-border);
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
-    transition: transform 0.1s;
+    gap: 0.5rem;
+    position: relative;
+    transition: all 0.1s;
+    box-shadow: 0px 4px 0px var(--ui-border);
+    cursor: pointer;
 }
 
-.dungeon-btn:active {
-    transform: translateY(2px);
-    box-shadow: inset 2px 2px 0px rgba(0,0,0,0.6);
+.btn-game:active {
+    transform: translateY(4px);
+    box-shadow: 0px 0px 0px var(--ui-border);
 }
 
-.btn-stone { background-color: var(--c-stone); }
-.btn-gold { background-color: var(--c-gold); color: #221a00; text-shadow: none; }
-.btn-nether { background-color: var(--c-nether); }
-.btn-mossy { background-color: var(--c-mossy); }
-.btn-diamond { background-color: var(--c-diamond); color: #000; text-shadow: none; }
+/* Button Colors */
+.btn-primary {
+    background: var(--mat-grass-top);
+    color: white;
+    text-shadow: 1px 1px 0 #000;
+}
+.btn-primary:hover { filter: brightness(1.1); }
 
-/* Inputs Dungeon */
-.dungeon-input {
-    background-color: #111;
-    border: 2px solid #555;
-    color: #fff;
-    font-family: var(--font-pixel);
-    padding: 0.5rem;
+.btn-secondary {
+    background: var(--mat-stone);
+    color: white;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.btn-danger {
+    background: #ff5252;
+    color: white;
+}
+
+.btn-gold {
+    background: var(--mat-gold);
+    color: #5d4037;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
+}
+
+/* Inputs "Crafting Slot" style */
+.input-game {
+    background: #c6c6c6;
+    border: 3px solid #555;
+    box-shadow: inset 3px 3px 0px #000, inset -2px -2px 0px #fff;
+    padding: 0.75rem;
+    color: #000;
+    font-family: var(--font-body);
+    font-weight: bold;
+    font-size: 1.1rem;
+    width: 100%;
+    border-radius: 0;
+}
+.input-game:focus {
     outline: none;
-    font-size: 1.2rem;
-    box-shadow: inset 2px 2px 0px #000;
+    background: #fff;
 }
-.dungeon-input:focus { border-color: var(--c-gold); }
 
-/* Scrollbar Dark */
-::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-track { background: #111; }
+/* Custom Scrollbar (Minecraft Style) */
+::-webkit-scrollbar { width: 12px; }
+::-webkit-scrollbar-track { background: #333; border-left: 2px solid #000; }
 ::-webkit-scrollbar-thumb { 
-    background: #444; 
-    border: 1px solid #000;
+    background: #888; 
+    border: 2px solid #fff;
+    box-shadow: inset -2px -2px 0 #555;
 }
-
-/* Utilitários de Texto */
-.text-pixel { font-family: var(--font-pixel); }
-.text-gold { color: var(--c-gold); }
-.text-diamond { color: var(--c-diamond); }
-.text-shadow { text-shadow: 2px 2px 0px #000; }

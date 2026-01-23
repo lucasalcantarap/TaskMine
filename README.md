@@ -1,83 +1,95 @@
 
 # ⚔️ MineTask: Adventure Edition
 
-**Transformando Rotinas em Aventuras Épicas!**
+> **Transformando a rotina familiar em uma aventura épica de voxels!**
 
-O **MineTask** é um aplicativo gamificado projetado para ajudar crianças (especialmente aquelas com TDAH e Autismo) a gerenciarem suas tarefas diárias de forma divertida e visual. Inspirado na estética vibrante dos desenhos animados (estilo Nickelodeon) misturada com a mecânica de coleta de recursos do Minecraft.
-
----
-
-## 📘 Manual do Usuário
-
-### 1. Para os Pais (Mestres do Jogo)
-
-O objetivo dos pais é atuar como "Mestres do Servidor", configurando as missões e aprovando o progresso.
-
-**Configuração Inicial:**
-1. Abra o app.
-2. Selecione **"Criar Novo Mundo"**.
-3. Escolha um nome para o servidor (ex: "Casa da Família").
-4. Crie o perfil da criança.
-5. **IMPORTANTE:** Defina um PIN de 4 dígitos. Este PIN protege a área administrativa para que a criança não altere as próprias recompensas.
-6. Guarde o **Código da Família** gerado (ex: `SUPER-ZOMBIE-99`) para logar em outros dispositivos.
-
-**Fluxo Diário:**
-1. Acesse a área dos pais (escudo azul na tela de seleção).
-2. Vá na aba **Tarefas** e adicione missões (ex: "Escovar Dentes", "Arrumar Cama"). Defina o horário (Manhã/Tarde/Noite).
-3. Vá na aba **Recompensas** e defina prêmios reais (ex: "30min de Tablet" = 50 XP).
-4. Durante o dia, acesse a aba **Aprovações** para ver as fotos que seu filho enviou. Aprove para dar XP ou rejeite se precisar refazer.
-
-### 2. Para os Heróis (Crianças)
-
-Seu objetivo é ganhar XP (Esmeraldas) e subir de nível para desbloquear recompensas!
-
-**Como Jogar:**
-1. Abra o app no seu tablet ou celular.
-2. Veja suas missões no Bioma atual (Manhã, Tarde ou Noite).
-3. Toque em uma missão.
-4. **Tire uma foto** mostrando que você fez a tarefa!
-5. Espere o Papai ou Mamãe aprovar.
-6. Quando aprovado, você ganha XP! Use o XP na **LOJA** para comprar prêmios.
+O **MineTask** é uma aplicação web progressiva (PWA) gamificada, projetada para auxiliar crianças (com foco em neurodivergência: TDAH e Autismo) a organizarem suas tarefas diárias. O sistema utiliza mecânicas de RPG e a estética visual de "Minecraft" misturada com "Magic Cat Academy" para criar engajamento positivo.
 
 ---
 
-## 🛠️ Guia Técnico & Deploy
+## 🌟 Funcionalidades Principais
 
-Este projeto é um Frontend React moderno usando Vite, TypeScript e Firebase.
+### 🛡️ Para os Heróis (Crianças)
+*   **Gamificação Visual**: Interface vibrante ("Plastic Voxel") com avatares que evoluem (de Camiseta a Armadura de Netherite).
+*   **Sistema de Provas**: Envio de fotos ou desenhos para comprovar que a tarefa foi feita.
+*   **Feedback Imediato**: Sons de sucesso, ganho de XP e barras de progresso visuais.
+*   **Modo Construtor**: Um editor de pixel art integrado onde a criança gasta seus recursos para construir seu próprio mundo.
+*   **Loja de Recompensas**: Troca de moedas virtuais por blocos de construção ou prêmios reais (ex: "Noite da Pizza").
+
+### 👑 Para os Mestres (Pais)
+*   **Painel de Controle (Dungeon Master)**: Interface administrativa para criar missões e gerenciar a economia do jogo.
+*   **Ciclo de Aprovação**: As tarefas não somem sozinhas; os pais aprovam ou rejeitam as evidências enviadas.
+*   **Modo Combo**: Ferramenta rápida para criar rotinas inteiras (ex: "Rotina Matinal" cria 5 tarefas de uma vez).
+*   **Ajustes Manuais**: Poder de "Deus" para dar bônus de XP ou aplicar penalidades de HP em casos comportamentais.
+
+---
+
+## 🛠️ Stack Tecnológica
+
+*   **Frontend**: React 19 (Hooks, Functional Components).
+*   **Build Tool**: Vite.
+*   **Linguagem**: TypeScript.
+*   **Estilização**: Tailwind CSS + Variáveis CSS para Temas (Voxel/Stone/Wood).
+*   **Backend / Database**: Firebase Realtime Database (via API compat).
+*   **Assets**: Ícones `lucide-react`, Fontes Google (`Bangers`, `Fredoka`, `VT323`).
+*   **Audio**: Sintetizador de áudio nativo (Web Audio API) para efeitos sonoros sem arquivos mp3 externos.
+
+---
+
+## 🚀 Como Rodar o Projeto
 
 ### Pré-requisitos
-- Node.js 18+
-- Conta no Firebase (Gratuita)
+*   Node.js 18 ou superior.
+*   Conta no Firebase (Plano Spark gratuito serve).
 
-### Instalação Local
+### 1. Instalação
 ```bash
 git clone https://github.com/seu-usuario/minetask.git
 cd minetask
 npm install
-npm run dev
 ```
 
-### Configuração do Firebase
-1. Crie um projeto no [Firebase Console](https://console.firebase.google.com/).
-2. Crie um **Realtime Database** e configure as regras para `read: true, write: true` (modo teste) ou configure autenticação anônima.
-3. Crie um arquivo `.env` na raiz com suas credenciais:
+### 2. Configuração do Firebase
+Crie um arquivo `.env` na raiz do projeto com as credenciais do seu projeto Firebase:
+
 ```env
 VITE_FIREBASE_API_KEY=sua_api_key
-VITE_FIREBASE_DB_URL=https://seu-projeto.firebaseio.com
+VITE_FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
+VITE_FIREBASE_DB_URL=https://seu-projeto-default-rtdb.firebaseio.com
+VITE_FIREBASE_PROJECT_ID=seu-projeto
+VITE_FIREBASE_STORAGE_BUCKET=seu-projeto.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=seu_sender_id
+VITE_FIREBASE_APP_ID=seu_app_id
 ```
 
-### Deploy no Vercel (Produção)
-1. Faça fork deste repositório.
-2. Crie uma conta na [Vercel](https://vercel.com/).
-3. Clique em **"Add New..."** > **"Project"** e selecione o repositório.
-4. Nas configurações do projeto na Vercel, adicione as variáveis de ambiente do Firebase (mesmas do `.env`).
-5. Clique em **Deploy**.
+> **Nota**: No Firebase Console, certifique-se de habilitar o **Realtime Database** e configurar as regras de segurança para desenvolvimento (leitura/escrita `true` ou autenticação anônima).
 
-### Personalização (White Label)
-- **Cores:** Edite `index.css` nas variáveis `:root`.
-- **Ícones/Logos:** Substitua os SVGs em `components/WelcomeScreen.tsx`.
-- **Lógica de XP:** Ajuste `services/game-logic.ts` para mudar a curva de nível.
+### 3. Execução
+```bash
+npm run dev
+```
+Acesse `http://localhost:5173`.
 
 ---
 
-**Feito com carinho para mentes brilhantes e criativas.** 🚀
+## 🎨 Estrutura de Temas
+
+O projeto utiliza um sistema de temas definido em `index.css`:
+*   **Cores de Materiais**: `--mat-grass`, `--mat-stone`, `--mat-wood` definem a paleta baseada em blocos.
+*   **Tipografia**:
+    *   `Bangers`: Títulos e botões de ação (Vibe Arcade).
+    *   `VT323`: Números, datas e dados técnicos (Vibe Retro/Console).
+    *   `Fredoka`: Textos de leitura (Acessibilidade e conforto).
+
+---
+
+## 📱 Guia de Uso Rápido
+
+1.  Ao abrir, clique em **Novo Jogo**.
+2.  Defina o nome do Mundo e o PIN dos pais (importante para bloquear o painel administrativo).
+3.  Guarde o **Código do Servidor** gerado (ex: `BRAVE-CREEPER-123`).
+4.  Use esse código para logar em outros dispositivos (celular da criança).
+
+---
+
+Feito com 💜 para ajudar famílias a transformarem o caos em diversão.

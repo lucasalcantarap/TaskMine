@@ -4,7 +4,7 @@ import { useGameController } from './hooks/useGameController';
 import WelcomeScreen from './components/WelcomeScreen';
 import ChildDashboard from './components/ChildDashboard';
 import ParentPanel from './components/ParentPanel';
-import { Hammer, ShieldCheck, Lock, Server, Heart } from 'lucide-react';
+import { Hammer, ShieldCheck, Lock, Server, Heart, LogOut } from 'lucide-react';
 import { sfx } from './services/audio';
 
 const App: React.FC = () => {
@@ -34,9 +34,9 @@ const App: React.FC = () => {
   }
 
   if (!isReady) return (
-    <div className="min-h-screen bg-[#0c0c0d] flex flex-col items-center justify-center gap-4">
-      <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-      <p className="mc-font text-emerald-500 animate-pulse uppercase tracking-widest">Sincronizando Reino...</p>
+    <div className="min-h-screen bg-[#8fd3fe] flex flex-col items-center justify-center gap-4">
+      <div className="w-16 h-16 border-4 border-white border-t-[#58bf58] rounded-full animate-spin"></div>
+      <p className="font-pixel text-[#3e2723] animate-pulse text-2xl">Carregando Mundo...</p>
     </div>
   );
 
@@ -56,46 +56,59 @@ const App: React.FC = () => {
     }
   };
 
-  // Safe accessors para evitar erros de build TS18048
   const profile = data.profile;
   const hp = profile ? profile.hp : 100;
   const isHeroDead = hp <= 0;
-  const isLowSensory = profile ? profile.sensoryMode === 'low_sensory' : false;
 
   return (
-    <div className={`min-h-screen flex flex-col bg-[#0c0c0d] ${isLowSensory ? 'sensory-low' : ''}`}>
-      <header className="bg-zinc-900/90 backdrop-blur-md border-b border-white/5 p-4 flex justify-between items-center sticky top-0 z-[100]">
+    <div className="min-h-screen flex flex-col bg-[#8fd3fe] selection:bg-green-300">
+      
+      {/* Navbar Voxel */}
+      <header className="bg-[#333] border-b-4 border-[#111] p-3 flex justify-between items-center sticky top-0 z-[100] shadow-lg">
         <div className="flex items-center gap-4">
-          <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/30">
-            <Server size={18} className="text-emerald-400" />
+          <div className="bg-[#58bf58] p-2 rounded border-2 border-[#4ca34c] shadow-md">
+            <Server size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="font-black text-[10px] tracking-widest text-white uppercase">{data.settings?.familyName || familyId}</h1>
-            <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-red-500'}`}></span>
-              <span className="text-[8px] font-black uppercase text-zinc-500">{isOnline ? 'Servidor Ativo' : 'Offline'}</span>
+            <h1 className="font-display text-xl text-white tracking-wider leading-none drop-shadow-md">{data.settings?.familyName || familyId}</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`w-3 h-3 rounded border border-black ${isOnline ? 'bg-green-400' : 'bg-red-500'}`}></span>
+              <span className="text-[10px] font-bold uppercase text-gray-300 font-pixel">{isOnline ? 'CONECTADO' : 'OFFLINE'}</span>
             </div>
           </div>
         </div>
         <div className="flex gap-2">
-            <button onClick={() => setView('selection')} className="mc-btn-pixel text-[10px] px-4">MODO</button>
-            <button onClick={handleLogout} className="mc-btn-pixel danger text-[10px] px-4">SAIR</button>
+            {view !== 'selection' && (
+                <button onClick={() => setView('selection')} className="btn-game btn-secondary py-1 px-3 text-sm border-2">MENU</button>
+            )}
+            <button onClick={handleLogout} className="btn-game btn-danger py-1 px-3 text-sm border-2">
+                <LogOut size={16}/>
+            </button>
         </div>
       </header>
 
-      <main className="flex-grow p-4 md:p-8 pb-16">
+      <main className="flex-grow p-4 md:p-6 pb-20 max-w-7xl mx-auto w-full">
         {view === 'selection' && (
-          <div className="max-w-4xl mx-auto mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-             <button onClick={() => setView('child')} className="mc-panel-pixel p-12 flex flex-col items-center gap-8 hover:-translate-y-2 transition-all bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20 group">
-                <div className="relative">
-                    <Hammer size={64} className="text-emerald-400 group-hover:scale-110 transition-transform" />
-                    {isHeroDead && <span className="absolute -top-4 -right-4 text-4xl">💀</span>}
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+             <button onClick={() => setView('child')} className="panel-game bg-[#58bf58] p-10 flex flex-col items-center gap-6 hover:translate-y-1 transition-transform group overflow-hidden border-green-800">
+                <div className="relative bg-white/20 p-6 rounded-full border-4 border-white shadow-lg backdrop-blur-sm">
+                    <Hammer size={56} className="text-white drop-shadow-md" />
+                    {isHeroDead && <span className="absolute -top-2 -right-2 text-4xl animate-bounce">💀</span>}
                 </div>
-                <span className="mc-font text-2xl uppercase font-black text-white">Entrar como Herói</span>
+                <div className="text-center relative z-10 text-white">
+                    <span className="font-display text-4xl block mb-2 drop-shadow-md">ENTRAR NO JOGO</span>
+                    <span className="text-green-100 text-lg font-bold font-pixel">Área do Jogador</span>
+                </div>
              </button>
-             <button onClick={() => setShowPin(true)} className="mc-panel-pixel p-12 flex flex-col items-center gap-8 hover:-translate-y-2 transition-all bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/20 group">
-                <ShieldCheck size={64} className="text-blue-400 group-hover:scale-110 transition-transform" />
-                <span className="mc-font text-2xl uppercase font-black text-white">Mestre (Pais)</span>
+
+             <button onClick={() => setShowPin(true)} className="panel-game bg-[#7d7d7d] p-10 flex flex-col items-center gap-6 hover:translate-y-1 transition-transform group overflow-hidden border-gray-600">
+                <div className="relative bg-black/20 p-6 rounded-full border-4 border-gray-400 shadow-lg backdrop-blur-sm">
+                    <ShieldCheck size={56} className="text-gray-300 drop-shadow-md" />
+                </div>
+                <div className="text-center relative z-10 text-white">
+                    <span className="font-display text-4xl block mb-2 drop-shadow-md">MESTRE DO JOGO</span>
+                    <span className="text-gray-300 text-lg font-bold font-pixel">Área dos Pais</span>
+                </div>
              </button>
           </div>
         )}
@@ -132,20 +145,24 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="p-4 bg-black/40 text-center border-t border-white/5">
-         <p className="text-[8px] font-black uppercase text-zinc-500 tracking-widest flex items-center justify-center gap-1">
-            MineTask v4.1 • Feito com <Heart size={8} className="text-red-500 fill-current" /> por Lucas
+      <footer className="p-4 text-center border-t-4 border-[#4ca34c] bg-[#58bf58]">
+         <p className="text-lg font-display text-white flex items-center justify-center gap-2 tracking-wider drop-shadow-sm">
+            Feito com amor por <Heart size={20} className="text-red-500 fill-current animate-bounce" /> Lucas
          </p>
       </footer>
 
       {showPin && (
-        <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-6 backdrop-blur-sm">
-           <div className="mc-panel-pixel p-10 max-w-sm w-full text-center bg-[#c6c6c6]">
-              <Lock className="text-blue-600 mx-auto mb-6" size={32} />
-              <h2 className="mc-font text-xl text-black mb-8 font-black">PIN DE ACESSO</h2>
-              <div className="flex justify-center gap-4 mb-8">
-                 {[0,1,2,3].map(i => (<div key={i} className={`w-4 h-4 rounded-full border-2 border-black/20 ${pinInput.length > i ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-zinc-400'}`} />))}
+        <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-6 backdrop-blur-sm animate-in fade-in duration-200">
+           <div className="panel-game p-8 max-w-sm w-full text-center bg-[#333] border-gray-600">
+              <div className="mx-auto bg-gray-700 w-16 h-16 rounded flex items-center justify-center mb-6 text-gray-300 border-2 border-gray-500 shadow-inner">
+                  <Lock size={32} />
               </div>
+              <h2 className="font-display text-3xl text-white mb-6">Acesso Restrito</h2>
+              
+              <div className="flex justify-center gap-4 mb-8">
+                 {[0,1,2,3].map(i => (<div key={i} className={`w-4 h-4 rounded-sm transition-all duration-300 ${pinInput.length > i ? 'bg-green-500 scale-125 shadow-[0_0_10px_#58bf58]' : 'bg-gray-600 border border-gray-500'}`} />))}
+              </div>
+              
               <div className="grid grid-cols-3 gap-3">
                  {[1,2,3,4,5,6,7,8,9,'C',0,'X'].map(v => (
                    <button 
@@ -156,7 +173,7 @@ const App: React.FC = () => {
                         else handlePinSubmit(v.toString());
                         sfx.play('click');
                     }} 
-                    className="h-14 mc-btn-pixel bg-zinc-100 text-black text-2xl font-black"
+                    className={`h-16 rounded border-b-4 font-display text-2xl transition-all active:border-b-0 active:translate-y-1 ${typeof v === 'number' ? 'bg-gray-200 border-gray-400 text-gray-800' : 'bg-red-500 border-red-800 text-white'}`}
                    >{v}</button>
                  ))}
               </div>

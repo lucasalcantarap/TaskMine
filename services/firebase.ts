@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getDatabase } from 'firebase/database';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/database';
 
 // Fix for ImportMeta env type error by casting to any
 const env = (import.meta as any).env;
@@ -16,7 +16,8 @@ const firebaseConfig = {
 };
 
 // Singleton para inicialização do Firebase para evitar múltiplas instâncias
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Utilizando API compatível (compat) para garantir funcionamento do Realtime Database
+const app = firebase.apps.length === 0 ? firebase.initializeApp(firebaseConfig) : firebase.app();
 
-// Exporta o banco de dados passando explicitamente a URL do config
-export const db = getDatabase(app, firebaseConfig.databaseURL);
+// Exporta a instância do banco de dados (namespaced)
+export const db = app.database();
