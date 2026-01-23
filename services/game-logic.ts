@@ -1,13 +1,44 @@
 
-import { UserProfile, Task } from '../types';
+import { UserProfile, Task, TimeOfDay } from '../types';
 
+// Avatares estilo Pixel Art gerados dinamicamente via DiceBear API
 export const AVATARS_BY_LEVEL = [
-  { level: 1, emoji: "👕", name: "Steve (Novato)", desc: "Apenas uma camiseta azul." },
-  { level: 3, emoji: "🟤", name: "Couro (Explorador)", desc: "Proteção básica para explorar." },
-  { level: 5, emoji: "⚪", name: "Ferro (Guerreiro)", desc: "Armadura brilhante e resistente." },
-  { level: 10, emoji: "🟡", name: "Ouro (Veterano)", desc: "Estiloso, mas quebra rápido!" },
-  { level: 20, emoji: "💎", name: "Diamante (Mestre)", desc: "A proteção suprema do jogo." },
-  { level: 50, emoji: "🟣", name: "Netherite (Lenda)", desc: "Mais forte que diamante." }
+  { 
+    level: 1, 
+    image: "https://api.dicebear.com/9.x/pixel-art/svg?seed=Steve&backgroundColor=b6e3f4", 
+    name: "Novato", 
+    desc: "Apenas o começo." 
+  },
+  { 
+    level: 3, 
+    image: "https://api.dicebear.com/9.x/pixel-art/svg?seed=Explorer&glasses=probability=100&backgroundColor=c0aede", 
+    name: "Explorador", 
+    desc: "Pronto para aventura." 
+  },
+  { 
+    level: 5, 
+    image: "https://api.dicebear.com/9.x/pixel-art/svg?seed=Warrior&clothing=armor&backgroundColor=ffdfbf", 
+    name: "Guerreiro", 
+    desc: "Forte e corajoso." 
+  },
+  { 
+    level: 10, 
+    image: "https://api.dicebear.com/9.x/pixel-art/svg?seed=King&clothing=cape&backgroundColor=ffd5dc", 
+    name: "Veterano", 
+    desc: "Respeitado por todos." 
+  },
+  { 
+    level: 20, 
+    image: "https://api.dicebear.com/9.x/pixel-art/svg?seed=Wizard&clothing=robe&backgroundColor=d1d4f9", 
+    name: "Mestre", 
+    desc: "Lenda viva." 
+  },
+  { 
+    level: 50, 
+    image: "https://api.dicebear.com/9.x/pixel-art/svg?seed=GodMode&eyes=variant15&backgroundColor=ffdfbf", 
+    name: "Deus Voxel", 
+    desc: "Onipotente." 
+  }
 ];
 
 export class GameEngine {
@@ -16,25 +47,32 @@ export class GameEngine {
     return AVATARS_BY_LEVEL.slice().reverse().find(a => level >= a.level) || AVATARS_BY_LEVEL[0];
   }
 
-  /**
-   * Calcula o novo estado do perfil após aprovar uma tarefa.
-   * Regra: Tarefa dá XP e Esmeraldas. Level Up dá Cristais (Diamantes).
-   */
+  static isTaskExpired(task: Task): boolean {
+    const hour = new Date().getHours();
+    
+    // Definição dos finais de turno
+    const morningEnd = 12;   // 12:00
+    const afternoonEnd = 18; // 18:00
+    // Noite termina as 06:00 do dia seguinte, lógica tratada pelo reset diário ou checagem simples
+    
+    if (task.timeOfDay === TimeOfDay.MORNING && hour >= morningEnd) return true;
+    if (task.timeOfDay === TimeOfDay.AFTERNOON && hour >= afternoonEnd) return true;
+    // Tarefas da noite só expiram tecnicamente as 6am, assumimos que não expiram no mesmo dia para simplificar
+    
+    return false;
+  }
+
   static calculateLevelUp(profile: UserProfile, task: Task): UserProfile {
-    // 1. Adicionar recompensas básicas da tarefa
-    // 'points' no objeto Task representa o XP
     const xpGained = task.points || 10; 
     const emeraldsGained = task.emeralds || 0;
     
     let newEmeralds = profile.emeralds + emeraldsGained;
-    let newDiamonds = profile.diamonds + (task.diamonds || 0); // Diamantes diretos são raros, mas possíveis
+    let newDiamonds = profile.diamonds + (task.diamonds || 0);
 
-    // 2. Calcular XP acumulado
     let currentExperience = profile.experience + xpGained;
     let currentLevel = profile.level;
-    const xpForNextLevel = currentLevel * 100;
 
-    // 3. Verificar Level Up (Pode subir mais de um nível se o XP for alto)
+    // Lógica de Level Up
     let levelsGained = 0;
     while (currentExperience >= (currentLevel * 100)) {
       currentExperience -= (currentLevel * 100);
@@ -42,25 +80,19 @@ export class GameEngine {
       levelsGained++;
     }
 
-    // 4. Bônus de Level Up (Cristais)
     if (levelsGained > 0) {
-        // Ganha 5 cristais por nível subido
-        const crystalReward = levelsGained * 5;
-        newDiamonds += crystalReward;
-        
-        // Recupera HP ao subir de nível
-        profile.hp = profile.maxHp; 
+        newDiamonds += levelsGained * 5; // Bônus de 5 diamantes por nível
     }
 
-    const avatarData = this.getAvatarForLevel(currentLevel);
-
+    // Retorna novo objeto sem mutar o anterior
     return {
       ...profile,
       experience: currentExperience,
       level: currentLevel,
       emeralds: newEmeralds,
       diamonds: newDiamonds,
-      rank: avatarData.name
+      hp: levelsGained > 0 ? profile.maxHp : profile.hp, // Cura ao upar
+      rank: this.getAvatarForLevel(currentLevel).name
     };
   }
 }

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Play, Plus, ArrowRight, Save, Shield } from 'lucide-react';
+import { Play, Plus, Server } from 'lucide-react';
 import { sfx } from '../services/audio';
 import { RepositoryFactory } from '../services/storage';
 import { WorldGenerator } from '../services/world-generator';
@@ -9,229 +9,118 @@ interface WelcomeScreenProps {
   onJoinFamily: (code: string) => void;
 }
 
-type ScreenMode = 'MENU' | 'CREATE' | 'JOIN';
-
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onJoinFamily }) => {
-  const [mode, setMode] = useState<ScreenMode>('MENU');
-  
-  // Create Form State
-  const [newWorldName, setNewWorldName] = useState('');
-  const [childName, setChildName] = useState('');
-  const [parentPin, setParentPin] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+  const [mode, setMode] = useState<'MENU' | 'CREATE' | 'JOIN'>('MENU');
+  const [formData, setFormData] = useState({ world: '', child: '', pin: '', joinCode: '' });
+  const [loading, setLoading] = useState(false);
 
-  // Join Form State
-  const [joinCode, setJoinCode] = useState('');
-  const [isJoining, setIsJoining] = useState(false);
+  const updateForm = (k: string, v: string) => setFormData(prev => ({...prev, [k]: v}));
 
-  const handleCreateWorld = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newWorldName || !childName || parentPin.length < 4) {
-        sfx.play('error');
-        return;
-    }
-
-    setIsCreating(true);
+    if (!formData.world || !formData.child || formData.pin.length < 4) { sfx.play('error'); return; }
+    
+    setLoading(true);
     sfx.play('click');
-    
-    // 1. Gerar Código Único
     const newCode = WorldGenerator.generateSeed();
-    
     try {
-        // 2. Inicializar Estrutura no Firebase
         const repo = RepositoryFactory.createFamilyContext(newCode);
-        
-        // Salvar Perfil Inicial da Criança
         await repo.profile.save({
-            name: childName,
-            emeralds: 0,
-            diamonds: 0,
-            hp: 100,
-            maxHp: 100,
-            level: 1,
-            experience: 0,
-            streak: 0,
-            inventory: {},
-            worldBlocks: [],
-            rank: 'Novato',
-            sensoryMode: 'standard',
-            showDayMap: true
+            name: formData.child, emeralds: 0, diamonds: 0, hp: 100, maxHp: 100,
+            level: 1, experience: 0, streak: 0, inventory: {}, worldBlocks: [], rank: 'Aldeão', sensoryMode: 'standard', showDayMap: true
         });
-
-        // Salvar Configurações Iniciais dos Pais
-        await repo.settings.save({
-            familyName: newWorldName,
-            parentPin: parentPin,
-            rules: {
-                allowShop: true,
-                allowBuilder: true,
-                xpMultiplier: 1,
-                damageMultiplier: 1,
-                requireEvidence: true
-            }
-        });
-
+        await repo.settings.save({ familyName: formData.world, parentPin: formData.pin, rules: { allowShop: true, allowBuilder: true, xpMultiplier: 1, damageMultiplier: 1, requireEvidence: true } });
         sfx.play('levelup');
-        // 3. Entrar
         onJoinFamily(newCode);
-
-    } catch (error) {
-        console.error(error);
-        sfx.play('error');
-    } finally {
-        setIsCreating(false);
-    }
+    } catch { sfx.play('error'); } 
+    setLoading(false);
   };
 
-  const handleJoin = async (e: React.FormEvent) => {
+  const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanCode = joinCode.trim().toUpperCase();
-    if (cleanCode.length < 5) return;
-
-    setIsJoining(true);
+    if (formData.joinCode.length < 5) return;
     sfx.play('click');
-
-    const repo = RepositoryFactory.createFamilyContext(cleanCode);
-    const exists = await repo.root.exists(); // Verifica se existe algo na raiz
-    // Nota: Firebase realtime db retorna null se path nao existe. 
-    // Nossa implementação de exists verifica snapshot.exists()
-    
-    if (exists) {
-        sfx.play('success');
-        onJoinFamily(cleanCode);
-    } else {
-        // Se não existe, podemos dar erro ou criar padrão (legacy behavior)
-        // Vamos manter legacy behavior mas avisar
-        sfx.play('pop');
-        onJoinFamily(cleanCode);
-    }
-    setIsJoining(false);
+    onJoinFamily(formData.joinCode.toUpperCase());
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-dirt">
+    <div className="min-h-screen relative flex flex-col items-center justify-center p-6 transition-all duration-1000 overflow-hidden">
       
-      {/* Background Animado */}
-      <div className="absolute inset-0 z-0 bg-panaroma opacity-40"></div>
-      
-      {/* Container Principal */}
-      <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-500">
+      {/* Background Panorama Simulado */}
+      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 animate-pulse pointer-events-none"></div>
+
+      <div className="relative z-10 w-full max-w-sm flex flex-col items-center gap-8">
         
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8 animate-float">
-            <h1 className="font-game text-5xl text-white drop-shadow-[4px_4px_0_#000] text-center leading-tight text-stroke">
-                MINE<br/><span className="text-[#55ff55]">TASK</span>
+        {/* LOGO MINECRAFT STYLE */}
+        <div className="text-center">
+            <h1 className="font-game text-6xl md:text-8xl text-white drop-shadow-[4px_4px_0_#000] tracking-widest transform -rotate-2" 
+                style={{ fontFamily: "'VT323', monospace", textShadow: "4px 4px 0 #3f3f3f, 6px 6px 0 #000" }}>
+                QUEST
             </h1>
-            <span className="bg-yellow-400 text-black font-game text-[8px] px-2 py-1 -rotate-6 mt-2 border-2 border-white shadow-lg">
-                EDITION: FAMILY
-            </span>
+            <h1 className="font-game text-6xl md:text-8xl text-[#50e4e8] drop-shadow-[4px_4px_0_#000] tracking-widest transform rotate-2 -mt-4"
+                style={{ fontFamily: "'VT323', monospace", textShadow: "4px 4px 0 #2c9ba0, 6px 6px 0 #000" }}>
+                CRAFT
+            </h1>
+            <p className="font-game text-[#ffff55] text-xl mt-2 animate-bounce mc-shadow-text">v4.0 RPG EDITION</p>
         </div>
 
-        {/* --- MODO MENU --- */}
         {mode === 'MENU' && (
-            <div className="flex flex-col gap-4 w-full px-8">
-                <button 
-                    onClick={() => { sfx.play('click'); setMode('CREATE'); }}
-                    className="mc-btn primary py-4 text-xl shadow-xl hover:scale-105 transition-transform"
-                >
-                    <Plus className="mr-2" size={24}/> NOVO JOGO
+            <div className="flex flex-col gap-4 w-full w-64">
+                <button onClick={() => setMode('CREATE')} className="mc-button mc-btn-green w-full group">
+                    <Plus size={24} className="mr-2"/> NOVO MUNDO
                 </button>
-                <button 
-                    onClick={() => { sfx.play('click'); setMode('JOIN'); }}
-                    className="mc-btn py-4 text-xl shadow-xl hover:scale-105 transition-transform"
-                >
-                    <Play className="mr-2" size={24}/> CONTINUAR
+                <button onClick={() => setMode('JOIN')} className="mc-button mc-btn-stone w-full group">
+                    <Server size={24} className="mr-2"/> MULTIPLAYER
                 </button>
-                <div className="text-center mt-8 text-gray-400 font-pixel text-sm">
-                    © 2024 Lucas Arts Studios
-                </div>
             </div>
         )}
 
-        {/* --- MODO CRIAR (SETUP) --- */}
         {mode === 'CREATE' && (
-            <div className="mc-panel w-full p-1 shadow-2xl">
-                <div className="bg-[#3b3b3b] p-2 border-b-2 border-[#1a1a1a] mb-2">
-                    <h2 className="font-game text-xs text-center text-white">CRIAR NOVO MUNDO</h2>
+            <div className="mc-panel w-full p-1 animate-pop">
+                <div className="bg-[#212121] text-white p-2 text-center border-b-2 border-white/10 mb-4">
+                    <h2 className="mc-title-game text-xl">Criar Novo Servidor</h2>
                 </div>
-                <form onSubmit={handleCreateWorld} className="p-4 flex flex-col gap-4">
-                    
+                
+                <form onSubmit={handleCreate} className="flex flex-col gap-4 p-2">
                     <div>
-                        <label className="font-pixel text-[#333] text-lg font-bold">Nome da Família/Mundo</label>
-                        <input 
-                            required
-                            placeholder="Ex: Reino dos Santos"
-                            value={newWorldName}
-                            onChange={e => setNewWorldName(e.target.value)}
-                            className="mc-input w-full text-xl"
-                        />
+                        <label className="text-xs font-bold text-[#555] uppercase block mb-1">Nome do Reino</label>
+                        <input className="mc-input w-full" placeholder="Ex: Reino Silva" value={formData.world} onChange={e=>updateForm('world', e.target.value)} required/>
                     </div>
-
                     <div>
-                        <label className="font-pixel text-[#333] text-lg font-bold">Nome do Herói (Filho)</label>
-                        <input 
-                            required
-                            placeholder="Ex: Enzo ou Valentina"
-                            value={childName}
-                            onChange={e => setChildName(e.target.value)}
-                            className="mc-input w-full text-xl"
-                        />
+                        <label className="text-xs font-bold text-[#555] uppercase block mb-1">Nick do Herói</label>
+                        <input className="mc-input w-full" placeholder="Steve" value={formData.child} onChange={e=>updateForm('child', e.target.value)} required/>
                     </div>
-
                     <div>
-                        <label className="font-pixel text-[#333] text-lg font-bold flex items-center gap-2">
-                            PIN dos Pais <Shield size={14}/>
-                        </label>
-                        <input 
-                            required
-                            type="tel"
-                            maxLength={4}
-                            placeholder="****"
-                            value={parentPin}
-                            onChange={e => setParentPin(e.target.value.replace(/\D/g,''))}
-                            className="mc-input w-full text-xl tracking-widest text-center"
-                        />
-                        <span className="text-[10px] text-gray-600 font-pixel">Usado para aprovar tarefas.</span>
+                        <label className="text-xs font-bold text-[#555] uppercase block mb-1">PIN do Admin</label>
+                        <input className="mc-input w-full text-center tracking-[0.5em]" type="tel" maxLength={4} placeholder="0000" value={formData.pin} onChange={e=>updateForm('pin', e.target.value.replace(/\D/g,''))} required/>
                     </div>
-
-                    <div className="flex gap-2 mt-4">
-                        <button type="button" onClick={() => setMode('MENU')} className="mc-btn danger flex-1 py-3">VOLTAR</button>
-                        <button type="submit" disabled={isCreating} className="mc-btn primary flex-[2] py-3 text-lg">
-                            {isCreating ? 'CRIANDO...' : 'CRIAR MUNDO'}
-                        </button>
+                    <div className="flex gap-2 mt-2">
+                        <button type="button" onClick={() => setMode('MENU')} className="mc-button mc-btn-red flex-1 text-sm">VOLTAR</button>
+                        <button type="submit" disabled={loading} className="mc-button mc-btn-green flex-[2]">CRIAR MUNDO</button>
                     </div>
                 </form>
             </div>
         )}
 
-        {/* --- MODO ENTRAR --- */}
         {mode === 'JOIN' && (
-            <div className="mc-panel w-full p-1 shadow-2xl">
-                 <div className="bg-[#3b3b3b] p-2 border-b-2 border-[#1a1a1a] mb-2">
-                    <h2 className="font-game text-xs text-center text-white">CONEXÃO DIRETA</h2>
-                </div>
-                <form onSubmit={handleJoin} className="p-6 flex flex-col gap-6">
-                    <div>
-                        <label className="font-pixel text-[#333] text-lg font-bold block text-center mb-2">CÓDIGO DO SERVIDOR</label>
-                        <input 
-                            autoFocus
-                            value={joinCode}
-                            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                            className="mc-input w-full text-2xl text-center uppercase tracking-widest p-4 border-4"
-                            placeholder="AAA-BBB-00"
-                        />
+            <div className="mc-panel w-full p-1 animate-pop">
+                 <div className="bg-[#212121] text-white p-2 text-center border-b-2 border-white/10 mb-4">
+                    <h2 className="mc-title-game text-xl">Conexão Direta</h2>
+                 </div>
+                 <form onSubmit={handleJoin} className="flex flex-col gap-4 p-2">
+                    <label className="text-xs font-bold text-[#555] uppercase block -mb-3">Endereço do Servidor</label>
+                    <input className="mc-input w-full text-center uppercase tracking-wider text-[#3b82f6]" placeholder="XXX-YYY-99" value={formData.joinCode} onChange={e=>updateForm('joinCode', e.target.value.toUpperCase())} autoFocus/>
+                    <div className="flex gap-2 mt-2">
+                        <button type="button" onClick={() => setMode('MENU')} className="mc-button mc-btn-red flex-1 text-sm">CANCELAR</button>
+                        <button type="submit" className="mc-button mc-btn-stone flex-[2]">ENTRAR</button>
                     </div>
-
-                    <div className="flex gap-2">
-                        <button type="button" onClick={() => setMode('MENU')} className="mc-btn danger flex-1 py-3">VOLTAR</button>
-                        <button type="submit" disabled={isJoining} className="mc-btn primary flex-[2] py-3 text-lg">
-                            {isJoining ? 'BUSCANDO...' : 'ENTRAR'} <ArrowRight size={18} className="ml-2"/>
-                        </button>
-                    </div>
-                </form>
+                 </form>
             </div>
         )}
-
+      </div>
+      
+      <div className="absolute bottom-2 text-[#555] font-game text-sm">
+          Copyright Mojang AB (Brincadeira, é fan made!)
       </div>
     </div>
   );

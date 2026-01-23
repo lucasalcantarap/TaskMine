@@ -19,10 +19,7 @@ export const useGameController = (familyId: string | null) => {
   useEffect(() => {
     if (!familyId) return;
     
-    // Inicializa repositórios
     repos.current = RepositoryFactory.createFamilyContext(familyId);
-    
-    // Verificação de segurança caso a inicialização falhe
     if (!repos.current) return;
 
     const unsubs = [
@@ -38,29 +35,64 @@ export const useGameController = (familyId: string | null) => {
     return () => unsubs.forEach(unsub => unsub());
   }, [familyId]);
 
+  // --- LÓGICA DE NEGÓCIO: Checagem de Falhas ---
+  useEffect(() => {
+    if (!profile || !tasks.length || !repos.current) return;
+
+    const checkFailures = () => {
+        let hpDamage = 0;
+        let tasksUpdated = false;
+        
+        const newTasks = tasks.map(t => {
+            if (t.status === TaskStatus.PENDING && GameEngine.isTaskExpired(t)) {
+                hpDamage += 20; // Dano fixo por tarefa não feita
+                tasksUpdated = true;
+                return { ...t, status: TaskStatus.FAILED };
+            }
+            return t;
+        });
+
+        if (tasksUpdated) {
+            repos.current!.tasks.save(newTasks);
+            const newHp = Math.max(0, profile.hp - hpDamage);
+            repos.current!.profile.save({ ...profile, hp: newHp });
+            
+            // Log e Som
+            if (hpDamage > 0) {
+                sfx.play('error');
+                const msg: Omit<ServerMessage, 'id'> = {
+                    text: `Você esqueceu tarefas! Perdeu ${hpDamage} HP.`,
+                    sender: 'MASTER',
+                    timestamp: Date.now(),
+                    read: false
+                };
+                (repos.current!.messages as any).addToList(msg);
+            }
+        }
+    };
+
+    // Roda a checagem a cada 1 minuto
+    const interval = setInterval(checkFailures, 60000);
+    // Roda uma vez ao carregar
+    const timeout = setTimeout(checkFailures, 2000);
+
+    return () => { clearInterval(interval); clearTimeout(timeout); };
+  }, [tasks, profile]);
+
+
   const logActivity = useCallback((type: WorldActivity['type'], detail: string, amount?: number, currency?: string) => {
     if (!repos.current || !profile) return;
     const act: Omit<WorldActivity, 'id'> = {
-      type,
-      user: profile.name,
-      detail,
-      timestamp: Date.now(),
-      amount,
-      currency
+      type, user: profile.name, detail, timestamp: Date.now(), amount, currency
     };
     (repos.current.activities as any).addToList(act);
   }, [profile]);
 
   const sendMessage = useCallback((text: string, sender: 'MASTER' | 'PLAYER') => {
     if (!repos.current) return;
-    const msg: Omit<ServerMessage, 'id'> = {
-      text,
-      sender,
-      timestamp: Date.now(),
-      read: false
-    };
+    const msg: Omit<ServerMessage, 'id'> = { text, sender, timestamp: Date.now(), read: false };
     (repos.current.messages as any).addToList(msg);
-    sfx.play('click');
+    if(sender === 'PLAYER') sfx.play('click');
   }, []);
 
   return {
@@ -74,8 +106,7 @@ export const useGameController = (familyId: string | null) => {
         sfx.play('pop');
       },
       updateTasks: (newTasks: Task[]) => {
-        if (!repos.current) return;
-        repos.current.tasks.save(newTasks);
+        repos.current?.tasks.save(newTasks);
       },
       completeTask: (taskId: string, url: string, type: 'photo' | 'drawing') => {
         if (!repos.current) return;
@@ -88,24 +119,27 @@ export const useGameController = (familyId: string | null) => {
         if (!repos.current || !profile) return;
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
+        
+        // Passa o profile atual para cálculo
         const newProfile = GameEngine.calculateLevelUp(profile, task);
+        
         repos.current.profile.save(newProfile);
         repos.current.tasks.save(tasks.map(t => t.id === taskId ? { ...t, status: TaskStatus.APPROVED, parentFeedback: feedback } : t));
+        
         logActivity('TASK_APPROVED', `Aprovada: ${task.title}`, task.emeralds, 'EMERALD');
         sendMessage(`Mestre aprovou: ${task.title}! Recompensa entregue.`, 'MASTER');
         sfx.play('success');
       },
       rejectTask: (id: string) => {
         if (!repos.current) return;
-        repos.current.tasks.save(tasks.map(t => t.id === id ? { ...t, status: TaskStatus.REJECTED, evidenceUrl: undefined } : t));
+        repos.current.tasks.save(tasks.map(t => t.id === id ? { ...t, status: TaskStatus.PENDING, evidenceUrl: undefined } : t)); // Volta para PENDING, não REJECTED final
         sendMessage("Sua evidência não foi aceita. Tente novamente!", 'MASTER');
       },
       buyReward: async (rewardId: string) => {
         if (!repos.current || !profile) return false;
         
-        // Verifica se a loja está permitida nas regras
-        if (settings?.rules && !settings.rules.allowShop) {
-            alert("A loja está fechada pelo administrador do servidor!");
+        if (settings?.rules?.allowShop === false) { // Safety check
+            alert("A loja está fechada pelo administrador!");
             return false;
         }
 
@@ -121,7 +155,7 @@ export const useGameController = (familyId: string | null) => {
           };
           await repos.current.profile.save(newProfile);
           logActivity('ITEM_BOUGHT', `Comprou: ${reward.title}`, reward.cost, reward.currency.toUpperCase());
-          sfx.play('pop');
+          sfx.play('buy');
           return true;
         }
         return false;

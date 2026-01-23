@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Task, TimeOfDay, TaskStatus, UserProfile, Reward } from '../types';
-import { Gift, FlaskConical, Sword, Clock, Pickaxe, Check, AlertCircle } from 'lucide-react';
+import { Sun, Moon, Check, Camera, Shield, Cloud, Heart, X, Clock, ShoppingBag, Sword } from 'lucide-react';
 import { sfx } from '../services/audio';
 import { GameEngine } from '../services/game-logic';
 
@@ -15,114 +15,183 @@ interface ChildDashboardProps {
   onUpdateTask: (newTasks: Task[]) => void;
 }
 
-const ChildDashboard: React.FC<ChildDashboardProps> = ({ 
-  tasks, profile, rewards, onCompleteTask, onBuyReward 
-}) => {
+// --- SUB-COMPONENTE: HUD ESTILO MINECRAFT ---
+const MinecraftHUD: React.FC<{ profile: UserProfile, avatarData: any, onClick: () => void }> = ({ profile, avatarData, onClick }) => {
+  const nextLevelXp = profile.level * 100;
+  const xpProgress = Math.min((profile.experience / nextLevelXp) * 100, 100);
+  
+  // Hearts Calculation (20HP max usually, represented by 10 hearts)
+  const hearts = Math.ceil(profile.hp / 10);
+  const maxHearts = 10;
+
+  return (
+    <div className="fixed top-0 left-0 w-full z-50 pointer-events-none p-2">
+      <div 
+        onClick={onClick}
+        className="pointer-events-auto max-w-2xl mx-auto flex justify-between items-start"
+      >
+          {/* Avatar e Nome */}
+          <div className="flex gap-2 items-start">
+             <div className="w-16 h-16 bg-[#212121] border-4 border-white pixel-corners overflow-hidden">
+                <img src={avatarData.image} alt="Skin" className="w-full h-full object-cover" />
+             </div>
+             <div className="mt-1">
+                 <div className="bg-[#212121]/80 px-2 py-0.5 text-white font-game text-xl border-2 border-white/20 inline-block mb-1">
+                    {profile.name} <span className="text-[#5f9e30]">Lvl {profile.level}</span>
+                 </div>
+                 
+                 {/* Hearts Row */}
+                 <div className="flex gap-1 flex-wrap max-w-[150px]">
+                    {[...Array(maxHearts)].map((_, i) => (
+                        <Heart 
+                            key={i} 
+                            size={16} 
+                            className={`${i < hearts ? 'fill-[#d13030] text-[#7a1c1c]' : 'fill-[#212121] text-[#555]'} drop-shadow-sm`}
+                        />
+                    ))}
+                 </div>
+             </div>
+          </div>
+
+          {/* Inventory Summary */}
+          <div className="flex flex-col gap-1 items-end">
+              <div className="flex items-center gap-2 bg-[#212121]/80 px-3 py-1 border-2 border-[#50e4e8] text-[#50e4e8] font-game text-xl">
+                  <span>{profile.diamonds}</span> 💎
+              </div>
+              <div className="flex items-center gap-2 bg-[#212121]/80 px-3 py-1 border-2 border-[#5f9e30] text-[#5f9e30] font-game text-xl">
+                  <span>{profile.emeralds}</span> 🟢
+              </div>
+          </div>
+      </div>
+      
+      {/* XP Bar (Bottom of HUD) */}
+      <div className="max-w-2xl mx-auto mt-2 px-1">
+          <div className="w-full h-3 bg-[#212121] border border-black relative">
+              <div className="h-full bg-[#5f9e30] absolute top-0 left-0 transition-all" style={{width: `${xpProgress}%`}}></div>
+              <div className="absolute -top-4 w-full text-center text-[#5f9e30] text-xs font-game mc-shadow-text">{profile.experience} / {nextLevelXp}</div>
+          </div>
+      </div>
+    </div>
+  );
+};
+
+const ChildDashboard: React.FC<ChildDashboardProps> = ({ tasks, profile, rewards, onCompleteTask, onBuyReward }) => {
   const [activeModal, setActiveModal] = useState<'NONE' | 'SHOP' | 'STATS'>('NONE');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const avatarData = GameEngine.getAvatarForLevel(profile.level);
-  const nextLevelXp = profile.level * 100;
-  const progress = Math.min((profile.experience / nextLevelXp) * 100, 100);
+  
+  // Biome Themes
+  const hour = new Date().getHours();
+  const getBiomeColor = () => {
+      if (hour < 12) return 'linear-gradient(to bottom, #87CEEB, #E0F6FF)'; // Plains
+      if (hour < 18) return 'linear-gradient(to bottom, #F0B060, #F5D0A9)'; // Desert/Savanna
+      return 'linear-gradient(to bottom, #100820, #2C2045)'; // End/Cave
+  };
 
-  // Filtra tarefas
-  const morningTasks = tasks.filter(t => t.timeOfDay === TimeOfDay.MORNING);
-  const afternoonTasks = tasks.filter(t => t.timeOfDay === TimeOfDay.AFTERNOON);
-  const nightTasks = tasks.filter(t => t.timeOfDay === TimeOfDay.NIGHT);
+  const filterTasks = (time: TimeOfDay) => tasks.filter(t => t.timeOfDay === time);
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 600;
+                const scaleSize = MAX_WIDTH / img.width;
+                canvas.width = MAX_WIDTH;
+                canvas.height = img.height * scaleSize;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            };
+        };
+    });
+  };
 
   const handleTaskClick = (task: Task) => {
-    if (task.status === TaskStatus.APPROVED) { sfx.play('click'); return; }
-    if (task.status === TaskStatus.COMPLETED) { alert("O Mestre já está analisando isso!"); return; }
-    
+    if (task.status === TaskStatus.APPROVED || task.status === TaskStatus.COMPLETED) return;
     setSelectedTask(task);
-    // Simula clique no input de arquivo
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && selectedTask) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            onCompleteTask(selectedTask.id, reader.result as string, 'photo');
+        try {
+            const compressedBase64 = await compressImage(file);
+            onCompleteTask(selectedTask.id, compressedBase64, 'photo');
             setSelectedTask(null);
-            sfx.play('success');
-        };
-        reader.readAsDataURL(file);
+        } catch (err) {
+            console.error(err);
+            sfx.play('error');
+        }
     }
   };
 
-  // Componente de Cartão de Bioma (Lista de Tarefas)
-  const BiomeCard = ({ title, icon, items, bgClass }: { title: string, icon: any, items: Task[], bgClass: string }) => {
-    const completedCount = items.filter(t => t.status === TaskStatus.APPROVED).length;
-    const isFullComplete = items.length > 0 && completedCount === items.length;
+  const QuestScroll = ({ task }: { task: Task }) => {
+    const isDone = task.status === TaskStatus.APPROVED;
+    const isReview = task.status === TaskStatus.COMPLETED;
+    const isFailed = task.status === TaskStatus.FAILED;
+    
+    // Paper/Parchment Style
+    let bgColor = '#fffcd9'; // Paper
+    let borderColor = '#a68b5a';
+    let textColor = '#453823';
+
+    if (isDone) {
+        bgColor = '#e6ffdb'; // Success
+        borderColor = '#5f9e30';
+    } else if (isFailed) {
+        bgColor = '#ffdbdb'; // Fail
+        borderColor = '#d13030';
+    } else if (isReview) {
+        bgColor = '#fff4db'; // Pending
+        borderColor = '#d99e2b';
+    }
 
     return (
-        <div className={`flex-none w-[85vw] md:w-96 h-[65vh] rounded-xl border-4 border-black relative flex flex-col shadow-2xl overflow-hidden ${bgClass}`}>
+        <div 
+            onClick={() => handleTaskClick(task)}
+            className="mb-3 relative group"
+        >
+            {/* Paper Edge Effect */}
+            <div className="absolute top-1 left-1 w-full h-full bg-black/30 rounded-sm"></div>
             
-            {/* Header */}
-            <div className="bg-black/70 p-4 border-b-4 border-black flex justify-between items-center backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white/10 rounded-lg text-white">{icon}</div>
-                    <div>
-                        <h3 className="font-game text-white text-sm text-stroke tracking-wider">{title}</h3>
-                        <div className="w-24 h-2 bg-gray-700 mt-1 rounded-full overflow-hidden">
-                            <div className="h-full bg-green-500 transition-all" style={{ width: `${(completedCount / Math.max(items.length, 1)) * 100}%` }}></div>
-                        </div>
+            <div className="relative p-3 border-4 cursor-pointer active:translate-y-1 transition-transform flex items-center gap-3"
+                 style={{ backgroundColor: bgColor, borderColor: borderColor, imageRendering: 'pixelated' }}>
+                
+                <div className={`w-10 h-10 border-2 border-black/20 flex items-center justify-center shrink-0 ${isDone ? 'bg-[#5f9e30]/20' : 'bg-black/5'}`}>
+                    {isDone ? <Check strokeWidth={4} size={24} className="text-[#5f9e30]" /> : 
+                     isReview ? <Clock size={24} className="animate-spin text-orange-500" /> : 
+                     isFailed ? <X size={24} className="text-red-500" /> :
+                     <Sword size={24} className="text-[#453823]" />}
+                </div>
+
+                <div className="flex-grow min-w-0">
+                    <h4 className="font-game text-xl leading-none mb-1 truncate" style={{color: textColor}}>
+                        {task.title}
+                    </h4>
+                    <div className="flex gap-2">
+                        <span className="bg-[#a68b5a] text-white px-1.5 py-0.5 text-[10px] font-bold font-game uppercase border border-[#5c4d32]">
+                             {task.points} XP
+                        </span>
+                        {task.emeralds > 0 && (
+                            <span className="bg-[#5f9e30] text-white px-1.5 py-0.5 text-[10px] font-bold font-game uppercase border border-[#3e661f]">
+                                +{task.emeralds} GEMS
+                            </span>
+                        )}
                     </div>
                 </div>
-                {isFullComplete && <Check className="text-green-400 w-8 h-8 animate-bounce" />}
-            </div>
 
-            {/* Lista Scrollável */}
-            <div className="p-4 overflow-y-auto flex-grow space-y-3">
-                {items.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center opacity-80">
-                         <div className="bg-black/40 p-4 rounded-xl">
-                            <h4 className="font-game text-xs text-white mb-2">SEM MISSÕES</h4>
-                            <p className="font-pixel text-gray-300 text-lg">Explore outros biomas.</p>
-                         </div>
+                {!isDone && !isReview && !isFailed && (
+                    <div className="text-black/30">
+                        <Camera size={24}/>
                     </div>
-                ) : (
-                    items.map(task => {
-                        const isDone = task.status === TaskStatus.APPROVED;
-                        const isReview = task.status === TaskStatus.COMPLETED;
-                        
-                        return (
-                            <div 
-                                key={task.id}
-                                onClick={() => handleTaskClick(task)}
-                                className={`
-                                    relative p-3 border-b-4 border-r-4 rounded-lg flex items-center gap-3 transition-transform active:scale-95 cursor-pointer
-                                    ${isDone ? 'bg-green-900/80 border-green-950 opacity-70 grayscale' : 'bg-[#c6c6c6] border-[#555]'}
-                                    ${isReview ? 'bg-yellow-200 border-yellow-600' : ''}
-                                `}
-                            >
-                                {/* Ícone de Status */}
-                                <div className={`w-12 h-12 flex-shrink-0 flex items-center justify-center border-2 border-black/20 rounded ${isDone ? 'bg-green-500' : 'bg-white'}`}>
-                                    <span className="text-2xl">{isDone ? '✅' : isReview ? '⏳' : '📦'}</span>
-                                </div>
-
-                                {/* Texto */}
-                                <div className="flex-grow min-w-0">
-                                    <h4 className={`font-game text-[10px] leading-tight mb-1 truncate ${isDone ? 'text-green-100 line-through' : 'text-[#212121]'}`}>
-                                        {task.title}
-                                    </h4>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-pixel text-sm font-bold text-blue-800 bg-blue-200 px-1 rounded border border-blue-400">
-                                            +{task.points} XP
-                                        </span>
-                                        {task.emeralds > 0 && (
-                                            <span className="font-pixel text-sm font-bold text-green-800 bg-green-200 px-1 rounded border border-green-400">
-                                                +{task.emeralds} 🟢
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })
                 )}
             </div>
         </div>
@@ -130,143 +199,100 @@ const ChildDashboard: React.FC<ChildDashboardProps> = ({
   };
 
   return (
-    <div className="pb-24 pt-2 h-full flex flex-col">
+    <div className="min-h-screen pb-28 pt-28 px-4 overflow-x-hidden relative touch-pan-y" 
+         style={{ background: getBiomeColor() }}>
+         
       <input type="file" ref={fileInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleFileChange} />
 
-      {/* HUD SUPERIOR (Always Visible) */}
-      <div className="bg-[#212121] border-b-4 border-black p-3 fixed top-0 left-0 w-full z-50 shadow-xl flex gap-3 items-center">
-         {/* Avatar & Level */}
-         <div className="relative">
-             <div className="w-14 h-14 bg-[#8b8b8b] border-2 border-white flex items-center justify-center shadow-inner">
-                 <span className="text-3xl animate-pulse">{profile.hp > 0 ? avatarData.emoji : '💀'}</span>
+      <MinecraftHUD 
+        profile={profile} 
+        avatarData={avatarData} 
+        onClick={() => { setActiveModal('STATS'); sfx.play('click'); }} 
+      />
+
+      {/* --- LISTA DE QUESTS --- */}
+      <div className="max-w-md mx-auto space-y-8">
+         {/* Manhã */}
+         <div>
+             <div className="flex items-center gap-2 mb-2 pl-1 text-white mc-shadow-text">
+                 <Sun size={24} className="text-yellow-300 fill-yellow-300"/>
+                 <h3 className="font-game text-2xl">QUESTS MATINAIS</h3>
              </div>
-             <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white font-game text-[8px] px-1 border border-white">
-                LV.{profile.level}
-             </div>
+             {filterTasks(TimeOfDay.MORNING).map(t => <QuestScroll key={t.id} task={t}/>)}
+             {filterTasks(TimeOfDay.MORNING).length === 0 && <p className="text-white/50 font-game text-center">NENHUMA QUEST DISPONÍVEL</p>}
          </div>
 
-         {/* Stats Bars */}
-         <div className="flex-grow min-w-0 flex flex-col justify-center gap-1">
-             <div className="flex justify-between items-end">
-                 <span className="font-game text-[10px] text-white truncate">{profile.name}</span>
-                 <span className={`font-game text-[8px] ${profile.hp < 30 ? 'text-red-500 animate-pulse' : 'text-red-400'}`}>
-                    ♥ {profile.hp}
-                 </span>
+         {/* Tarde */}
+         <div>
+             <div className="flex items-center gap-2 mb-2 pl-1 text-white mc-shadow-text">
+                 <Cloud size={24} className="text-white fill-white"/>
+                 <h3 className="font-game text-2xl">QUESTS VESPERTINAS</h3>
              </div>
-             {/* XP Bar */}
-             <div className="h-4 bg-black border border-[#555] relative w-full">
-                 <div className="h-full bg-gradient-to-r from-green-600 to-lime-400 transition-all duration-700" style={{ width: `${progress}%` }}></div>
-                 <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="font-pixel text-[10px] text-white drop-shadow-md tracking-wider">
-                        XP {Math.floor(profile.experience)} / {nextLevelXp}
-                    </span>
-                 </div>
-             </div>
+             {filterTasks(TimeOfDay.AFTERNOON).map(t => <QuestScroll key={t.id} task={t}/>)}
+             {filterTasks(TimeOfDay.AFTERNOON).length === 0 && <p className="text-white/50 font-game text-center">NENHUMA QUEST DISPONÍVEL</p>}
          </div>
-
-         {/* Wallet */}
-         <div className="flex flex-col gap-1">
-             <div className="bg-black/40 px-2 py-1 flex items-center justify-between gap-2 border border-[#555] rounded min-w-[60px]">
-                 <span className="text-xs">💎</span>
-                 <span className="font-game text-[8px] text-cyan-300">{profile.diamonds}</span>
-             </div>
-             <div className="bg-black/40 px-2 py-1 flex items-center justify-between gap-2 border border-[#555] rounded min-w-[60px]">
-                 <span className="text-xs">🟢</span>
-                 <span className="font-game text-[8px] text-green-300">{profile.emeralds}</span>
-             </div>
-         </div>
-      </div>
-
-      <div className="h-24"></div> {/* Spacer for fixed header */}
-
-      {/* ÁREA DE JOGO (BIOMAS SCROLLÁVEIS) */}
-      <div className="flex overflow-x-auto gap-4 px-4 pb-8 snap-x snap-mandatory items-start scroll-smooth">
-        <div className="snap-center pt-2">
-            <BiomeCard title="MANHÃ" icon={<Clock size={20}/>} items={morningTasks} bgClass="bg-biome-overworld" />
-        </div>
-        <div className="snap-center pt-2">
-            <BiomeCard title="TARDE" icon={<Pickaxe size={20}/>} items={afternoonTasks} bgClass="bg-biome-cave" />
-        </div>
-        <div className="snap-center pt-2">
-            <BiomeCard title="NOITE" icon={<Sword size={20}/>} items={nightTasks} bgClass="bg-biome-nether" />
-        </div>
-      </div>
-
-      {/* HOTBAR (Navegação Inferior) */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#c6c6c6] p-1 border-2 border-black flex gap-2 shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-50 rounded">
-         <button 
-            onClick={() => setActiveModal('SHOP')}
-            className="w-16 h-16 bg-[#8b8b8b] border-2 border-white hover:bg-[#a0a0a0] active:border-[#555] active:bg-[#6b6b6b] flex flex-col items-center justify-center gap-1 group relative"
-         >
-             <Gift size={28} className="text-white drop-shadow-md group-hover:-translate-y-1 transition-transform"/>
-             <span className="font-pixel text-[10px] text-white bg-black/50 px-1 rounded">LOJA</span>
-         </button>
          
-         <div className="w-1 bg-[#555] mx-1"></div>
+         {/* Noite */}
+         <div>
+             <div className="flex items-center gap-2 mb-2 pl-1 text-white mc-shadow-text">
+                 <Moon size={24} className="text-purple-300 fill-purple-300"/>
+                 <h3 className="font-game text-2xl">QUESTS NOTURNAS</h3>
+             </div>
+             {filterTasks(TimeOfDay.NIGHT).map(t => <QuestScroll key={t.id} task={t}/>)}
+             {filterTasks(TimeOfDay.NIGHT).length === 0 && <p className="text-white/50 font-game text-center">NENHUMA QUEST DISPONÍVEL</p>}
+         </div>
+      </div>
 
+      {/* --- BOTTOM DOCK --- */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full flex justify-center pointer-events-none">
          <button 
-            onClick={() => setActiveModal('STATS')}
-            className="w-16 h-16 bg-[#8b8b8b] border-2 border-white hover:bg-[#a0a0a0] active:border-[#555] active:bg-[#6b6b6b] flex flex-col items-center justify-center gap-1 group relative"
+            onClick={() => setActiveModal('SHOP')} 
+            className="pointer-events-auto mc-button mc-btn-stone px-6 py-4 flex flex-col items-center gap-1 shadow-2xl hover:scale-105 transition-transform"
          >
-             <FlaskConical size={28} className="text-purple-300 drop-shadow-md group-hover:-translate-y-1 transition-transform"/>
-             <span className="font-pixel text-[10px] text-white bg-black/50 px-1 rounded">POÇÕES</span>
+            <div className="text-[#5f9e30]"><ShoppingBag size={28} /></div>
+            <span className="text-xs text-[#aaa]">MERCADOR</span>
          </button>
       </div>
 
-      {/* MODAL (Genérico para Loja e Stats) */}
+      {/* MODAL UNIVERSAL (UI DE BAÚ) */}
       {activeModal !== 'NONE' && (
-        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-            <div className="mc-panel w-full max-w-md flex flex-col max-h-[85vh] relative">
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+            <div className="mc-panel w-full max-w-sm flex flex-col shadow-2xl">
                 
-                {/* Header */}
-                <div className="bg-[#3b3b3b] p-3 border-b-2 border-[#1a1a1a] flex justify-between items-center">
-                    <h2 className="font-game text-white text-xs">
-                        {activeModal === 'SHOP' ? 'MERCADOR VIAJANTE' : 'ALQUIMIA & STREAK'}
+                {/* Header Modal */}
+                <div className="bg-[#212121] p-3 flex justify-between items-center border-b-4 border-black">
+                    <h2 className="font-game text-2xl text-[#999]">
+                        {activeModal === 'SHOP' ? 'Baú de Loot' : 'Estatísticas'}
                     </h2>
-                    <button onClick={() => setActiveModal('NONE')} className="bg-red-600 text-white w-8 h-8 border-2 border-black font-bold hover:bg-red-500">X</button>
+                    <button onClick={() => setActiveModal('NONE')} className="text-white bg-red-600 p-1 border-2 border-black hover:bg-red-700"><X size={20}/></button>
                 </div>
-
-                {/* Conteúdo */}
-                <div className="p-4 overflow-y-auto bg-[#c6c6c6] flex-grow">
-                    {activeModal === 'SHOP' && (
-                        <div className="grid grid-cols-2 gap-3">
-                            {rewards.length === 0 && <p className="col-span-2 text-center font-pixel text-gray-600">Loja vazia. Peça para o Mestre adicionar itens!</p>}
-                            {rewards.map(r => {
-                                const canBuy = (r.currency === 'diamond' ? profile.diamonds : profile.emeralds) >= r.cost;
-                                return (
-                                    <div key={r.id} onClick={() => canBuy && onBuyReward(r.id)} 
-                                        className={`p-2 border-2 border-[#555] bg-[#8b8b8b] hover:bg-[#9b9b9b] active:translate-y-1 cursor-pointer flex flex-col items-center gap-2 relative ${!canBuy ? 'opacity-50 grayscale' : ''}`}
-                                    >
-                                        <div className="w-12 h-12 bg-black/20 flex items-center justify-center text-3xl rounded border border-white/10">
-                                            {r.icon}
-                                        </div>
-                                        <div className="text-center w-full">
-                                            <div className="font-pixel text-sm font-bold leading-tight h-8 flex items-center justify-center text-white drop-shadow-sm">{r.title}</div>
-                                            <button className={`w-full mt-1 font-game text-[8px] py-2 rounded text-white ${r.currency === 'diamond' ? 'bg-cyan-600' : 'bg-green-600'}`}>
-                                                {r.cost} {r.currency === 'diamond' ? '💎' : '🟢'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-
+                
+                <div className="p-4 bg-[#c6c6c6] grid grid-cols-2 gap-2 overflow-y-auto max-h-[60vh]">
+                    {activeModal === 'SHOP' && rewards.map(r => {
+                        const canBuy = (r.currency === 'diamond' ? profile.diamonds : profile.emeralds) >= r.cost;
+                        return (
+                            <button key={r.id} onClick={() => canBuy && onBuyReward(r.id)} disabled={!canBuy}
+                                className={`
+                                    p-2 border-2 flex flex-col items-center gap-2 transition-all relative
+                                    ${canBuy ? 'bg-[#8b8b8b] border-black hover:bg-[#a0a0a0] active:translate-y-1' : 'bg-[#555] border-[#333] opacity-60 cursor-not-allowed'}
+                                `}
+                            >
+                                <div className="text-4xl drop-shadow-md">{r.icon}</div>
+                                <span className="font-game text-lg leading-none text-white text-center w-full truncate">{r.title}</span>
+                                <span className={`px-2 py-0.5 text-xs font-bold font-game border border-black/50 text-white ${r.currency === 'diamond' ? 'bg-[#50e4e8] text-[#004d40]' : 'bg-[#5f9e30]'}`}>
+                                    {r.cost} {r.currency === 'diamond' ? 'DIA' : 'GEM'}
+                                </span>
+                            </button>
+                        )
+                    })}
+                    
                     {activeModal === 'STATS' && (
-                        <div className="flex flex-col gap-4 text-center">
-                            <div className="bg-[#212121] p-6 border-4 border-[#000] rounded">
-                                <div className="text-6xl mb-2 animate-bounce">🔥</div>
-                                <h3 className="font-game text-white text-xs mb-2">SEQUÊNCIA (STREAK)</h3>
-                                <p className="font-pixel text-5xl text-orange-500 font-bold">{profile.streak || 0} Dias</p>
+                        <div className="col-span-2 text-center py-6 text-[#212121]">
+                            <h3 className="font-game text-4xl mb-2">DIAS VIVOS: {profile.streak}</h3>
+                            <div className="w-full h-4 bg-[#555] border-2 border-black relative mt-4">
+                                <div className="h-full bg-[#50e4e8]" style={{width: '60%'}}></div>
                             </div>
-                            
-                            <div className="text-left bg-[#8b8b8b] p-4 border-2 border-white">
-                                <p className="font-game text-[10px] text-[#212121] mb-2">PRÓXIMA RECOMPENSA:</p>
-                                <div className="w-full h-4 bg-[#373737] border border-white rounded-full overflow-hidden">
-                                    <div className="h-full bg-yellow-400" style={{ width: `${Math.min(((profile.streak || 0)/7)*100, 100)}%` }}></div>
-                                </div>
-                                <p className="font-pixel text-xs text-[#212121] mt-1 text-right">Meta: 7 Dias</p>
-                            </div>
+                            <p className="font-game mt-1">XP PARA O PRÓXIMO NÍVEL</p>
                         </div>
                     )}
                 </div>
