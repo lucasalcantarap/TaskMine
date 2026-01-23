@@ -102,6 +102,13 @@ export const useGameController = (familyId: string | null) => {
       },
       buyReward: async (rewardId: string) => {
         if (!repos.current || !profile) return false;
+        
+        // Verifica se a loja está permitida nas regras
+        if (settings?.rules && !settings.rules.allowShop) {
+            alert("A loja está fechada pelo administrador do servidor!");
+            return false;
+        }
+
         const reward = rewards.find(r => r.id === rewardId);
         if (!reward) return false;
         
@@ -137,8 +144,8 @@ export const useGameController = (familyId: string | null) => {
       deleteReward: (id: string) => repos.current?.rewards.save(rewards.filter(r => r.id !== id)),
       deleteTask: (id: string) => repos.current?.tasks.save(tasks.filter(t => t.id !== id)),
       updateGoal: (g: GlobalGoal) => repos.current?.globalGoal.save(g),
-      updateSettings: (pin: string, name: string) => {
-        repos.current?.settings.save({ parentPin: pin, familyName: name });
+      updateSettings: (pin: string, name: string, rules: any) => {
+        repos.current?.settings.save({ parentPin: pin, familyName: name, rules });
       }
     }
   };

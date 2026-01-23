@@ -1,10 +1,9 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Task, TimeOfDay, TaskStatus, UserProfile, Reward, TaskStep } from '../types';
-import { X, Sun, SunMedium, Moon, ShoppingBag, Camera, Heart, Sparkles, Package, CheckCircle2, Clock, Map as MapIcon, ChevronRight, LayoutGrid, Zap, RefreshCw, Loader, Trophy } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Task, TimeOfDay, TaskStatus, UserProfile, Reward } from '../types';
+import { Gift, FlaskConical, Sword, Clock, Pickaxe, Check, AlertCircle } from 'lucide-react';
 import { sfx } from '../services/audio';
 import { GameEngine } from '../services/game-logic';
-import BuilderMode from './BuilderMode';
 
 interface ChildDashboardProps {
   tasks: Task[];
@@ -17,398 +16,263 @@ interface ChildDashboardProps {
 }
 
 const ChildDashboard: React.FC<ChildDashboardProps> = ({ 
-  tasks, profile, rewards, onCompleteTask, onBuyReward, onUpdateProfile, onUpdateTask 
+  tasks, profile, rewards, onCompleteTask, onBuyReward 
 }) => {
-  const [tab, setTab] = useState<TimeOfDay | 'SHOP' | 'INV' | 'MAP'>(TimeOfDay.MORNING);
-  const [showBuilder, setShowBuilder] = useState(false);
-  const [focusTask, setFocusTask] = useState<Task | null>(null);
-  const [timer, setTimer] = useState<number>(0);
-  const [isCapturing, setIsCapturing] = useState(false);
-  
-  const evidenceInputRef = useRef<HTMLInputElement>(null);
-  const currentRank = GameEngine.getRankInfo(profile.level);
-  const xpNeeded = GameEngine.getXpRequired(profile.level);
+  const [activeModal, setActiveModal] = useState<'NONE' | 'SHOP' | 'STATS'>('NONE');
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Verificação de Bioma por Horário Real
-  useEffect(() => {
-    const checkTimeGaps = () => {
-      const now = new Date();
-      const hour = now.getHours();
-      let currentPeriod: TimeOfDay = TimeOfDay.MORNING;
-      
-      if (hour >= 12 && hour < 18) currentPeriod = TimeOfDay.AFTERNOON;
-      if (hour >= 18 || hour < 6) currentPeriod = TimeOfDay.NIGHT;
+  const avatarData = GameEngine.getAvatarForLevel(profile.level);
+  const nextLevelXp = profile.level * 100;
+  const progress = Math.min((profile.experience / nextLevelXp) * 100, 100);
 
-      let hasChanges = false;
-      let penalty = 0;
+  // Filtra tarefas
+  const morningTasks = tasks.filter(t => t.timeOfDay === TimeOfDay.MORNING);
+  const afternoonTasks = tasks.filter(t => t.timeOfDay === TimeOfDay.AFTERNOON);
+  const nightTasks = tasks.filter(t => t.timeOfDay === TimeOfDay.NIGHT);
 
-      const updatedTasks = tasks.map(t => {
-        // Lógica de Falha: se o período passou e não foi aprovado/enviado
-        const isPastMorning = currentPeriod !== TimeOfDay.MORNING && t.timeOfDay === TimeOfDay.MORNING;
-        const isPastAfternoon = currentPeriod === TimeOfDay.NIGHT && t.timeOfDay === TimeOfDay.AFTERNOON;
-
-        const isUnfinished = t.status !== TaskStatus.APPROVED && t.status !== TaskStatus.COMPLETED && t.status !== TaskStatus.FAILED;
-
-        if ((isPastMorning || isPastAfternoon) && isUnfinished) {
-          hasChanges = true;
-          penalty += 20; // Dano maior por falha de tempo
-          return { ...t, status: TaskStatus.FAILED };
-        }
-        return t;
-      });
-
-      if (hasChanges) {
-        onUpdateTask(updatedTasks);
-        if (profile.hp > 0) {
-            onUpdateProfile({ hp: Math.max(0, profile.hp - penalty) });
-            sfx.play('error');
-        }
-      }
-    };
-
-    const interval = setInterval(checkTimeGaps, 60000); 
-    checkTimeGaps();
-    return () => clearInterval(interval);
-  }, [tasks, profile.hp]);
-
-  useEffect(() => {
-    let interval: number;
-    if (focusTask && timer > 0 && focusTask.status === TaskStatus.DOING) {
-      interval = window.setInterval(() => setTimer(t => t - 1), 1000);
-    }
-    return () => clearInterval(interval);
-  }, [focusTask, timer]);
-
-  const toggleStep = (taskId: string, stepId: string) => {
-    const updatedTasks = tasks.map(t => {
-      if (t.id === taskId) {
-        const newSteps = t.steps.map(s => s.id === stepId ? { ...s, completed: !s.completed } : s);
-        const started = newSteps.some(s => s.completed);
-        const allDone = newSteps.every(s => s.completed);
-        
-        return {
-          ...t,
-          steps: newSteps,
-          status: allDone ? TaskStatus.DOING : started ? TaskStatus.STARTED : TaskStatus.PENDING
-        };
-      }
-      return t;
-    });
-    onUpdateTask(updatedTasks);
-    sfx.play('pop');
+  const handleTaskClick = (task: Task) => {
+    if (task.status === TaskStatus.APPROVED) { sfx.play('click'); return; }
+    if (task.status === TaskStatus.COMPLETED) { alert("O Mestre já está analisando isso!"); return; }
+    
+    setSelectedTask(task);
+    // Simula clique no input de arquivo
+    fileInputRef.current?.click();
   };
 
-  const startTask = (task: Task) => {
-    if (profile.hp <= 0) return;
-    const updated = tasks.map(t => t.id === task.id ? { ...t, status: TaskStatus.STARTED } : t);
-    onUpdateTask(updated);
-    setFocusTask({ ...task, status: TaskStatus.STARTED });
-    setTimer((task.durationMinutes || 15) * 60);
-    sfx.play('success');
-  };
-
-  const handleFinishMission = () => {
-    if (!focusTask) return;
-    const allStepsDone = focusTask.steps.every(s => s.completed);
-    if (!allStepsDone) {
-        sfx.play('error');
-        alert("Objetivos incompletos! Você não pode provar a missão ainda.");
-        return;
-    }
-    sfx.play('click');
-    evidenceInputRef.current?.click();
-  };
-
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && focusTask) {
-      setIsCapturing(true);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onCompleteTask(focusTask.id, reader.result as string, 'photo');
-        setIsCapturing(false);
-        setFocusTask(null);
-        sfx.play('success');
-      };
-      reader.readAsDataURL(file);
+    if (file && selectedTask) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            onCompleteTask(selectedTask.id, reader.result as string, 'photo');
+            setSelectedTask(null);
+            sfx.play('success');
+        };
+        reader.readAsDataURL(file);
     }
   };
 
-  const getStatusLabel = (status: TaskStatus) => {
-    switch(status) {
-        case TaskStatus.APPROVED: return 'MISSÃO CUMPRIDA';
-        case TaskStatus.COMPLETED: return 'AGUARDANDO MESTRE';
-        case TaskStatus.FAILED: return 'FALHOU NO TEMPO';
-        case TaskStatus.STARTED: return 'INICIADA';
-        case TaskStatus.DOING: return 'NA ATIVA';
-        default: return 'DISPONÍVEL';
-    }
-  };
+  // Componente de Cartão de Bioma (Lista de Tarefas)
+  const BiomeCard = ({ title, icon, items, bgClass }: { title: string, icon: any, items: Task[], bgClass: string }) => {
+    const completedCount = items.filter(t => t.status === TaskStatus.APPROVED).length;
+    const isFullComplete = items.length > 0 && completedCount === items.length;
 
-  const getStatusColor = (status: TaskStatus) => {
-    switch(status) {
-        case TaskStatus.APPROVED: return 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10';
-        case TaskStatus.COMPLETED: return 'text-mc-blue border-mc-blue/30 bg-mc-blue/10';
-        case TaskStatus.FAILED: return 'text-red-500 border-red-500/30 bg-red-500/10';
-        case TaskStatus.STARTED: 
-        case TaskStatus.DOING: return 'text-mc-gold border-mc-gold/30 bg-mc-gold/10';
-        default: return 'text-zinc-500 border-white/10 bg-black/20';
-    }
+    return (
+        <div className={`flex-none w-[85vw] md:w-96 h-[65vh] rounded-xl border-4 border-black relative flex flex-col shadow-2xl overflow-hidden ${bgClass}`}>
+            
+            {/* Header */}
+            <div className="bg-black/70 p-4 border-b-4 border-black flex justify-between items-center backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/10 rounded-lg text-white">{icon}</div>
+                    <div>
+                        <h3 className="font-game text-white text-sm text-stroke tracking-wider">{title}</h3>
+                        <div className="w-24 h-2 bg-gray-700 mt-1 rounded-full overflow-hidden">
+                            <div className="h-full bg-green-500 transition-all" style={{ width: `${(completedCount / Math.max(items.length, 1)) * 100}%` }}></div>
+                        </div>
+                    </div>
+                </div>
+                {isFullComplete && <Check className="text-green-400 w-8 h-8 animate-bounce" />}
+            </div>
+
+            {/* Lista Scrollável */}
+            <div className="p-4 overflow-y-auto flex-grow space-y-3">
+                {items.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center opacity-80">
+                         <div className="bg-black/40 p-4 rounded-xl">
+                            <h4 className="font-game text-xs text-white mb-2">SEM MISSÕES</h4>
+                            <p className="font-pixel text-gray-300 text-lg">Explore outros biomas.</p>
+                         </div>
+                    </div>
+                ) : (
+                    items.map(task => {
+                        const isDone = task.status === TaskStatus.APPROVED;
+                        const isReview = task.status === TaskStatus.COMPLETED;
+                        
+                        return (
+                            <div 
+                                key={task.id}
+                                onClick={() => handleTaskClick(task)}
+                                className={`
+                                    relative p-3 border-b-4 border-r-4 rounded-lg flex items-center gap-3 transition-transform active:scale-95 cursor-pointer
+                                    ${isDone ? 'bg-green-900/80 border-green-950 opacity-70 grayscale' : 'bg-[#c6c6c6] border-[#555]'}
+                                    ${isReview ? 'bg-yellow-200 border-yellow-600' : ''}
+                                `}
+                            >
+                                {/* Ícone de Status */}
+                                <div className={`w-12 h-12 flex-shrink-0 flex items-center justify-center border-2 border-black/20 rounded ${isDone ? 'bg-green-500' : 'bg-white'}`}>
+                                    <span className="text-2xl">{isDone ? '✅' : isReview ? '⏳' : '📦'}</span>
+                                </div>
+
+                                {/* Texto */}
+                                <div className="flex-grow min-w-0">
+                                    <h4 className={`font-game text-[10px] leading-tight mb-1 truncate ${isDone ? 'text-green-100 line-through' : 'text-[#212121]'}`}>
+                                        {task.title}
+                                    </h4>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-pixel text-sm font-bold text-blue-800 bg-blue-200 px-1 rounded border border-blue-400">
+                                            +{task.points} XP
+                                        </span>
+                                        {task.emeralds > 0 && (
+                                            <span className="font-pixel text-sm font-bold text-green-800 bg-green-200 px-1 rounded border border-green-400">
+                                                +{task.emeralds} 🟢
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+        </div>
+    );
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12 mc-font">
-      <input type="file" ref={evidenceInputRef} className="hidden" accept="image/*" capture="environment" onChange={onFileChange} />
+    <div className="pb-24 pt-2 h-full flex flex-col">
+      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleFileChange} />
 
-      {/* HUD PRINCIPAL */}
-      <div className="mc-panel-pixel p-6 bg-[#1a1a1c]/80 backdrop-blur-xl border-white/5 text-white flex flex-col md:flex-row gap-8 items-center shadow-2xl">
+      {/* HUD SUPERIOR (Always Visible) */}
+      <div className="bg-[#212121] border-b-4 border-black p-3 fixed top-0 left-0 w-full z-50 shadow-xl flex gap-3 items-center">
+         {/* Avatar & Level */}
          <div className="relative">
-            <div className={`w-28 h-28 mc-slot bg-[#222] border-4 flex items-center justify-center text-6xl shadow-inner ${profile.hp <= 0 ? 'grayscale' : ''}`}>
-               {profile.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <span>{profile.hp <= 0 ? '💀' : currentRank.emoji}</span>}
-            </div>
-            <div className="absolute -bottom-3 -right-3 bg-mc-gold text-black px-3 py-1 text-xs font-black border-2 border-black shadow-lg">LV.{profile.level}</div>
+             <div className="w-14 h-14 bg-[#8b8b8b] border-2 border-white flex items-center justify-center shadow-inner">
+                 <span className="text-3xl animate-pulse">{profile.hp > 0 ? avatarData.emoji : '💀'}</span>
+             </div>
+             <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white font-game text-[8px] px-1 border border-white">
+                LV.{profile.level}
+             </div>
          </div>
+
+         {/* Stats Bars */}
+         <div className="flex-grow min-w-0 flex flex-col justify-center gap-1">
+             <div className="flex justify-between items-end">
+                 <span className="font-game text-[10px] text-white truncate">{profile.name}</span>
+                 <span className={`font-game text-[8px] ${profile.hp < 30 ? 'text-red-500 animate-pulse' : 'text-red-400'}`}>
+                    ♥ {profile.hp}
+                 </span>
+             </div>
+             {/* XP Bar */}
+             <div className="h-4 bg-black border border-[#555] relative w-full">
+                 <div className="h-full bg-gradient-to-r from-green-600 to-lime-400 transition-all duration-700" style={{ width: `${progress}%` }}></div>
+                 <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="font-pixel text-[10px] text-white drop-shadow-md tracking-wider">
+                        XP {Math.floor(profile.experience)} / {nextLevelXp}
+                    </span>
+                 </div>
+             </div>
+         </div>
+
+         {/* Wallet */}
+         <div className="flex flex-col gap-1">
+             <div className="bg-black/40 px-2 py-1 flex items-center justify-between gap-2 border border-[#555] rounded min-w-[60px]">
+                 <span className="text-xs">💎</span>
+                 <span className="font-game text-[8px] text-cyan-300">{profile.diamonds}</span>
+             </div>
+             <div className="bg-black/40 px-2 py-1 flex items-center justify-between gap-2 border border-[#555] rounded min-w-[60px]">
+                 <span className="text-xs">🟢</span>
+                 <span className="font-game text-[8px] text-green-300">{profile.emeralds}</span>
+             </div>
+         </div>
+      </div>
+
+      <div className="h-24"></div> {/* Spacer for fixed header */}
+
+      {/* ÁREA DE JOGO (BIOMAS SCROLLÁVEIS) */}
+      <div className="flex overflow-x-auto gap-4 px-4 pb-8 snap-x snap-mandatory items-start scroll-smooth">
+        <div className="snap-center pt-2">
+            <BiomeCard title="MANHÃ" icon={<Clock size={20}/>} items={morningTasks} bgClass="bg-biome-overworld" />
+        </div>
+        <div className="snap-center pt-2">
+            <BiomeCard title="TARDE" icon={<Pickaxe size={20}/>} items={afternoonTasks} bgClass="bg-biome-cave" />
+        </div>
+        <div className="snap-center pt-2">
+            <BiomeCard title="NOITE" icon={<Sword size={20}/>} items={nightTasks} bgClass="bg-biome-nether" />
+        </div>
+      </div>
+
+      {/* HOTBAR (Navegação Inferior) */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#c6c6c6] p-1 border-2 border-black flex gap-2 shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-50 rounded">
+         <button 
+            onClick={() => setActiveModal('SHOP')}
+            className="w-16 h-16 bg-[#8b8b8b] border-2 border-white hover:bg-[#a0a0a0] active:border-[#555] active:bg-[#6b6b6b] flex flex-col items-center justify-center gap-1 group relative"
+         >
+             <Gift size={28} className="text-white drop-shadow-md group-hover:-translate-y-1 transition-transform"/>
+             <span className="font-pixel text-[10px] text-white bg-black/50 px-1 rounded">LOJA</span>
+         </button>
          
-         <div className="flex-grow w-full space-y-5">
-            <div className="flex justify-between items-end">
-               <div className="space-y-1">
-                  <h2 className="text-3xl uppercase font-black leading-none drop-shadow-md">{profile.name}</h2>
-                  <span className="text-[10px] text-mc-blue font-black uppercase tracking-[0.2em]">{currentRank.name}</span>
-               </div>
-               <div className="flex gap-8">
-                  <div className="text-center">
-                    <span className="text-[10px] text-mc-green uppercase block font-black mb-1">Esmeraldas</span>
-                    <span className="text-3xl font-black drop-shadow-[0_0_10px_rgba(16,185,129,0.4)]">◆ {profile.emeralds}</span>
-                  </div>
-                  <div className="text-center">
-                    <span className="text-[10px] text-mc-blue uppercase block font-black mb-1">Diamantes</span>
-                    <span className="text-3xl font-black text-mc-blue drop-shadow-[0_0_10px_rgba(59,130,246,0.4)]">💎 {profile.diamonds}</span>
-                  </div>
-               </div>
-            </div>
-            
-            <div className="space-y-3">
-               <div className="relative h-6 bg-black/60 rounded-sm border border-white/10 overflow-hidden shadow-inner">
-                  <div className={`h-full transition-all duration-1000 ${profile.hp < 30 ? 'bg-red-600 animate-pulse' : 'bg-mc-red'}`} style={{ width: `${profile.hp}%` }}></div>
-                  <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black uppercase text-white drop-shadow-md">SAÚDE: {profile.hp} / 100</div>
-               </div>
-               <div className="relative h-6 bg-black/60 rounded-sm border border-white/10 overflow-hidden shadow-inner">
-                  <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${(profile.experience/xpNeeded)*100}%` }}></div>
-                  <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black uppercase text-white drop-shadow-md">XP: {profile.experience} / {xpNeeded}</div>
-               </div>
-            </div>
-         </div>
+         <div className="w-1 bg-[#555] mx-1"></div>
+
+         <button 
+            onClick={() => setActiveModal('STATS')}
+            className="w-16 h-16 bg-[#8b8b8b] border-2 border-white hover:bg-[#a0a0a0] active:border-[#555] active:bg-[#6b6b6b] flex flex-col items-center justify-center gap-1 group relative"
+         >
+             <FlaskConical size={28} className="text-purple-300 drop-shadow-md group-hover:-translate-y-1 transition-transform"/>
+             <span className="font-pixel text-[10px] text-white bg-black/50 px-1 rounded">POÇÕES</span>
+         </button>
       </div>
 
-      {profile.hp <= 0 && (
-          <div className="mc-panel-pixel p-10 bg-red-950/90 border-red-500 text-center space-y-6 animate-bounce">
-              <h2 className="text-5xl text-red-500 font-black uppercase">VOCÊ MORREU!</h2>
-              <p className="text-white text-sm uppercase leading-relaxed font-bold max-w-lg mx-auto">Sua rotina desmoronou. Peça ao seu Mestre (Pais) para usar uma Poção de Cura no Console!</p>
-              <Heart size={64} className="mx-auto text-red-900" />
-          </div>
-      )}
+      {/* MODAL (Genérico para Loja e Stats) */}
+      {activeModal !== 'NONE' && (
+        <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+            <div className="mc-panel w-full max-w-md flex flex-col max-h-[85vh] relative">
+                
+                {/* Header */}
+                <div className="bg-[#3b3b3b] p-3 border-b-2 border-[#1a1a1a] flex justify-between items-center">
+                    <h2 className="font-game text-white text-xs">
+                        {activeModal === 'SHOP' ? 'MERCADOR VIAJANTE' : 'ALQUIMIA & STREAK'}
+                    </h2>
+                    <button onClick={() => setActiveModal('NONE')} className="bg-red-600 text-white w-8 h-8 border-2 border-black font-bold hover:bg-red-500">X</button>
+                </div>
 
-      {/* NAVEGAÇÃO DE BIOMAS */}
-      <div className={profile.hp <= 0 ? 'opacity-20 pointer-events-none' : ''}>
-          <nav className="grid grid-cols-3 md:grid-cols-6 gap-3">
-            {[
-              { id: 'MAP', icon: MapIcon, label: 'Jornada' },
-              { id: TimeOfDay.MORNING, icon: Sun, label: 'Manhã' },
-              { id: TimeOfDay.AFTERNOON, icon: SunMedium, label: 'Tarde' },
-              { id: TimeOfDay.NIGHT, icon: Moon, label: 'Noite' },
-              { id: 'INV', icon: Package, label: 'Baú' },
-              { id: 'SHOP', icon: ShoppingBag, label: 'Loja' }
-            ].map(item => (
-              <button 
-                key={item.id} 
-                onClick={() => { sfx.play('click'); setTab(item.id as any); }}
-                className={`flex flex-col items-center p-5 mc-btn-pixel transition-all hover:scale-105 ${tab === item.id ? 'primary -translate-y-2' : 'bg-zinc-800 text-zinc-400 border-white/5'}`}
-              >
-                  <item.icon size={24} className={tab === item.id ? 'animate-bounce' : ''} />
-                  <span className="text-[10px] uppercase mt-2 font-black tracking-widest">{item.label}</span>
-              </button>
-            ))}
-          </nav>
+                {/* Conteúdo */}
+                <div className="p-4 overflow-y-auto bg-[#c6c6c6] flex-grow">
+                    {activeModal === 'SHOP' && (
+                        <div className="grid grid-cols-2 gap-3">
+                            {rewards.length === 0 && <p className="col-span-2 text-center font-pixel text-gray-600">Loja vazia. Peça para o Mestre adicionar itens!</p>}
+                            {rewards.map(r => {
+                                const canBuy = (r.currency === 'diamond' ? profile.diamonds : profile.emeralds) >= r.cost;
+                                return (
+                                    <div key={r.id} onClick={() => canBuy && onBuyReward(r.id)} 
+                                        className={`p-2 border-2 border-[#555] bg-[#8b8b8b] hover:bg-[#9b9b9b] active:translate-y-1 cursor-pointer flex flex-col items-center gap-2 relative ${!canBuy ? 'opacity-50 grayscale' : ''}`}
+                                    >
+                                        <div className="w-12 h-12 bg-black/20 flex items-center justify-center text-3xl rounded border border-white/10">
+                                            {r.icon}
+                                        </div>
+                                        <div className="text-center w-full">
+                                            <div className="font-pixel text-sm font-bold leading-tight h-8 flex items-center justify-center text-white drop-shadow-sm">{r.title}</div>
+                                            <button className={`w-full mt-1 font-game text-[8px] py-2 rounded text-white ${r.currency === 'diamond' ? 'bg-cyan-600' : 'bg-green-600'}`}>
+                                                {r.cost} {r.currency === 'diamond' ? '💎' : '🟢'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
 
-          <div className="min-h-[50vh] mt-8">
-            {tab === 'MAP' && (
-              <div className="mc-panel-pixel p-10 bg-zinc-900/60 space-y-10 animate-in fade-in border-white/5">
-                  <div className="flex items-center gap-4">
-                     <div className="h-px bg-white/10 flex-grow"></div>
-                     <h3 className="uppercase font-black tracking-[0.4em] text-zinc-500 text-xs">Caminho da Sobrevivência</h3>
-                     <div className="h-px bg-white/10 flex-grow"></div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-                    {[TimeOfDay.MORNING, TimeOfDay.AFTERNOON, TimeOfDay.NIGHT].map((time, i) => {
-                        const timeTasks = tasks.filter(t => t.timeOfDay === time);
-                        const done = timeTasks.filter(t => t.status === TaskStatus.APPROVED).length;
-                        const failed = timeTasks.filter(t => t.status === TaskStatus.FAILED).length;
-                        const isComplete = timeTasks.length > 0 && done === timeTasks.length;
-                        
-                        return (
-                            <div key={time} className={`p-8 mc-slot flex flex-col items-center gap-4 transition-all ${isComplete ? 'bg-emerald-900/40 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.2)]' : failed > 0 ? 'bg-red-950 border-red-500' : 'bg-zinc-900 border-white/10'}`}>
-                                <div className="text-4xl">{i === 0 ? '🌅' : i === 1 ? '☀️' : '🌙'}</div>
-                                <div className="text-center">
-                                    <p className="font-black text-xs uppercase text-white">{time}</p>
-                                    <p className={`text-[10px] font-black uppercase mt-1 ${isComplete ? 'text-emerald-400' : failed > 0 ? 'text-red-400' : 'text-zinc-500'}`}>
-                                        {done} FEITO / {failed} FALHOU
-                                    </p>
-                                </div>
-                                {isComplete && <Trophy className="text-mc-gold animate-pulse" size={24} />}
+                    {activeModal === 'STATS' && (
+                        <div className="flex flex-col gap-4 text-center">
+                            <div className="bg-[#212121] p-6 border-4 border-[#000] rounded">
+                                <div className="text-6xl mb-2 animate-bounce">🔥</div>
+                                <h3 className="font-game text-white text-xs mb-2">SEQUÊNCIA (STREAK)</h3>
+                                <p className="font-pixel text-5xl text-orange-500 font-bold">{profile.streak || 0} Dias</p>
                             </div>
-                        );
-                    })}
-                  </div>
-              </div>
-            )}
-
-            {(tab === TimeOfDay.MORNING || tab === TimeOfDay.AFTERNOON || tab === TimeOfDay.NIGHT) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom">
-                  {tasks.filter(t => t.timeOfDay === tab).map(task => (
-                    <div 
-                      key={task.id} 
-                      onClick={() => { 
-                          if(task.status === TaskStatus.PENDING) startTask(task);
-                          else if(task.status === TaskStatus.STARTED || task.status === TaskStatus.DOING) setFocusTask(task);
-                          sfx.play('click'); 
-                      }}
-                      className={`mc-panel-pixel p-6 cursor-pointer transition-all hover:-translate-y-2 group ${task.status === TaskStatus.FAILED ? 'opacity-40 grayscale pointer-events-none' : 'hover:bg-white/5'}`}
-                    >
-                      <div className="flex justify-between items-center mb-6">
-                          <span className={`text-[10px] font-black px-3 py-1 border uppercase tracking-tighter ${getStatusColor(task.status)}`}>
-                            {getStatusLabel(task.status)}
-                          </span>
-                          <div className="flex gap-2 text-xs font-black">
-                            {task.diamonds > 0 && <span className="text-mc-blue drop-shadow-md">💎{task.diamonds}</span>}
-                            <span className="text-mc-green drop-shadow-md">◆{task.emeralds}</span>
-                          </div>
-                      </div>
-                      <h4 className="text-xl font-black uppercase text-white group-hover:text-mc-gold transition-colors">{task.title}</h4>
-                      <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                            <Clock size={14} className="text-zinc-600"/> {task.durationMinutes || 15} MIN
-                          </div>
-                          <ChevronRight size={18} className="text-zinc-700 group-hover:text-white transition-all group-hover:translate-x-1" />
-                      </div>
-                    </div>
-                  ))}
-                  {tasks.filter(t => t.timeOfDay === tab).length === 0 && (
-                      <div className="col-span-full py-24 text-center mc-panel-pixel bg-white/5 border-dashed border-white/10 opacity-30">
-                          <p className="font-black uppercase text-xs">Nenhum bioma de missões aqui</p>
-                      </div>
-                  )}
-              </div>
-            )}
-
-            {tab === 'SHOP' && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {rewards.map(reward => {
-                    const canAfford = (reward.currency === 'diamond' ? profile.diamonds : profile.emeralds) >= reward.cost;
-                    return (
-                        <button 
-                        key={reward.id} 
-                        onClick={() => { if(canAfford) { onBuyReward(reward.id); sfx.play('buy'); } }} 
-                        className={`mc-slot p-6 flex flex-col items-center gap-3 transition-all ${!canAfford ? 'opacity-20 grayscale' : 'hover:-translate-y-2 hover:bg-white/10'}`}
-                        >
-                        <span className="text-5xl drop-shadow-2xl">{reward.icon}</span>
-                        <p className="text-[10px] font-black uppercase text-center text-zinc-300 leading-tight h-8 flex items-center">{reward.title}</p>
-                        <div className={`mt-2 font-black text-xs ${reward.currency === 'diamond' ? 'text-mc-blue' : 'text-mc-green'}`}>
-                            {reward.currency === 'diamond' ? '💎' : '◆'} {reward.cost}
+                            
+                            <div className="text-left bg-[#8b8b8b] p-4 border-2 border-white">
+                                <p className="font-game text-[10px] text-[#212121] mb-2">PRÓXIMA RECOMPENSA:</p>
+                                <div className="w-full h-4 bg-[#373737] border border-white rounded-full overflow-hidden">
+                                    <div className="h-full bg-yellow-400" style={{ width: `${Math.min(((profile.streak || 0)/7)*100, 100)}%` }}></div>
+                                </div>
+                                <p className="font-pixel text-xs text-[#212121] mt-1 text-right">Meta: 7 Dias</p>
+                            </div>
                         </div>
-                        </button>
-                    );
-                  })}
-              </div>
-            )}
-
-            {tab === 'INV' && (
-              <div className="space-y-8">
-                  <div className="flex justify-between items-center p-6 mc-panel-pixel bg-zinc-900 border-white/5">
-                    <h3 className="uppercase font-black text-xl text-white flex items-center gap-4"><Package size={28} className="text-mc-blue"/> Seu Grande Baú</h3>
-                    <button onClick={() => setShowBuilder(true)} className="mc-btn-pixel primary text-[12px] px-8 py-4 shadow-[0_6px_0_#065f46]">MODO CONSTRUÇÃO</button>
-                  </div>
-                  <div className="grid grid-cols-4 sm:grid-cols-8 lg:grid-cols-10 gap-3">
-                    {Object.entries(profile.inventory || {}).map(([id, count]) => {
-                      const item = rewards.find(r => r.id === id);
-                      if (!item || (count as number) <= 0) return null;
-                      return (
-                        <div key={id} className="mc-slot aspect-square flex items-center justify-center relative bg-white/5 border-white/5 group hover:border-mc-blue transition-colors">
-                            <span className="text-4xl group-hover:scale-110 transition-transform">{item.icon}</span>
-                            <span className="absolute bottom-0 right-0 bg-black text-white text-[10px] px-2 py-0.5 font-black border-l-2 border-t-2 border-white/10">
-                                {count as number}
-                            </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-              </div>
-            )}
-          </div>
-      </div>
-
-      {/* MODO FOCO (EM ANDAMENTO) */}
-      {focusTask && (
-        <div className="fixed inset-0 z-[300] bg-black/98 flex flex-col animate-in fade-in duration-500 overflow-y-auto">
-           <div className="max-w-2xl mx-auto w-full flex flex-col min-h-full p-8 gap-8">
-              <div className="flex justify-between items-center">
-                 <button onClick={() => setFocusTask(null)} className="mc-btn-pixel danger p-4 shadow-[0_6px_0_#7f1d1d]"><X size={28}/></button>
-                 <div className="text-center">
-                    <h2 className="text-4xl text-white font-black uppercase tracking-tight drop-shadow-2xl">{focusTask.title}</h2>
-                    <div className="flex items-center justify-center gap-2 mt-3">
-                        <div className="w-2 h-2 rounded-full bg-mc-gold animate-ping"></div>
-                        <span className="text-[10px] font-black text-mc-gold uppercase tracking-[0.3em]">Em execução...</span>
-                    </div>
-                 </div>
-                 <div className="w-16"></div>
-              </div>
-
-              <div className="flex-grow mc-panel-pixel bg-[#c6c6c6] p-12 space-y-8 border-none shadow-inner">
-                 <div className="flex items-center gap-4 border-b-4 border-black/5 pb-6">
-                    <Zap size={28} className="text-mc-gold" />
-                    <p className="text-[12px] font-black text-black/60 uppercase tracking-tighter">Cumpra os objetivos para ganhar recompensas!</p>
-                 </div>
-                 <div className="space-y-4">
-                    {focusTask.steps.map((step, idx) => (
-                       <button 
-                        key={step.id} 
-                        onClick={() => toggleStep(focusTask.id, step.id)}
-                        className={`w-full p-6 flex items-center gap-6 mc-slot border-none text-left transition-all active:scale-95 ${step.completed ? 'opacity-40 bg-emerald-500/10' : 'bg-white shadow-2xl hover:bg-zinc-50'}`}
-                       >
-                          <div className={`w-8 h-8 border-4 border-black flex items-center justify-center ${step.completed ? 'bg-emerald-500' : 'bg-zinc-200'}`}>
-                             {step.completed && <CheckCircle2 size={20} className="text-white" />}
-                             {!step.completed && <span className="text-xs font-black text-black/20">{idx + 1}</span>}
-                          </div>
-                          <span className={`text-2xl font-black uppercase text-black ${step.completed ? 'line-through text-zinc-400' : ''}`}>{step.text}</span>
-                       </button>
-                    ))}
-                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div className="mc-panel-pixel bg-black/40 border-white/5 p-6 flex justify-between items-center">
-                    <div>
-                        <span className="text-[10px] font-black text-zinc-500 uppercase block">Cronômetro</span>
-                        <span className="text-5xl font-black text-mc-red font-mono drop-shadow-[0_0_15px_rgba(239,68,68,0.4)]">
-                        {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}
-                        </span>
-                    </div>
-                    <Clock size={40} className="text-white/10" />
-                 </div>
-                 <button 
-                   disabled={!focusTask.steps.every(s => s.completed) || isCapturing}
-                   onClick={handleFinishMission}
-                   className="w-full py-8 mc-btn-pixel primary text-2xl font-black disabled:opacity-50 disabled:grayscale transition-all shadow-[0_10px_0_#065f46] hover:-translate-y-1 active:translate-y-1 flex items-center justify-center gap-4"
-                >
-                    {isCapturing ? <Loader className="animate-spin" /> : <Camera size={36}/>}
-                    FINALIZAR MISSÃO
-                 </button>
-              </div>
-           </div>
+                    )}
+                </div>
+            </div>
         </div>
       )}
-
-      {showBuilder && <BuilderMode profile={profile} rewards={rewards} onUpdateProfile={onUpdateProfile} onClose={() => setShowBuilder(false)} />}
     </div>
   );
 };

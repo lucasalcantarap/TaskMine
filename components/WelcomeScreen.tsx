@@ -1,110 +1,237 @@
 
 import React, { useState } from 'react';
-import { LogIn, Server, RefreshCw, Wand2, AlertTriangle, Shield } from 'lucide-react';
+import { Play, Plus, ArrowRight, Save, Shield } from 'lucide-react';
 import { sfx } from '../services/audio';
 import { RepositoryFactory } from '../services/storage';
+import { WorldGenerator } from '../services/world-generator';
 
 interface WelcomeScreenProps {
   onJoinFamily: (code: string) => void;
 }
 
-const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onJoinFamily }) => {
-  const [code, setCode] = useState('');
-  const [isChecking, setIsChecking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+type ScreenMode = 'MENU' | 'CREATE' | 'JOIN';
 
-  const generateSimpleSeed = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Sem O/0/I/1 para evitar erro
-    let result = 'MINE-';
-    for (let i = 0; i < 4; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
+const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onJoinFamily }) => {
+  const [mode, setMode] = useState<ScreenMode>('MENU');
+  
+  // Create Form State
+  const [newWorldName, setNewWorldName] = useState('');
+  const [childName, setChildName] = useState('');
+  const [parentPin, setParentPin] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Join Form State
+  const [joinCode, setJoinCode] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+
+  const handleCreateWorld = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWorldName || !childName || parentPin.length < 4) {
+        sfx.play('error');
+        return;
     }
-    setCode(result);
+
+    setIsCreating(true);
     sfx.play('click');
+    
+    // 1. Gerar Código Único
+    const newCode = WorldGenerator.generateSeed();
+    
+    try {
+        // 2. Inicializar Estrutura no Firebase
+        const repo = RepositoryFactory.createFamilyContext(newCode);
+        
+        // Salvar Perfil Inicial da Criança
+        await repo.profile.save({
+            name: childName,
+            emeralds: 0,
+            diamonds: 0,
+            hp: 100,
+            maxHp: 100,
+            level: 1,
+            experience: 0,
+            streak: 0,
+            inventory: {},
+            worldBlocks: [],
+            rank: 'Novato',
+            sensoryMode: 'standard',
+            showDayMap: true
+        });
+
+        // Salvar Configurações Iniciais dos Pais
+        await repo.settings.save({
+            familyName: newWorldName,
+            parentPin: parentPin,
+            rules: {
+                allowShop: true,
+                allowBuilder: true,
+                xpMultiplier: 1,
+                damageMultiplier: 1,
+                requireEvidence: true
+            }
+        });
+
+        sfx.play('levelup');
+        // 3. Entrar
+        onJoinFamily(newCode);
+
+    } catch (error) {
+        console.error(error);
+        sfx.play('error');
+    } finally {
+        setIsCreating(false);
+    }
   };
 
-  const handleConnect = async (e: React.FormEvent) => {
+  const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanCode = code.trim().toUpperCase();
+    const cleanCode = joinCode.trim().toUpperCase();
     if (cleanCode.length < 5) return;
 
-    setIsChecking(true);
-    setError(null);
+    setIsJoining(true);
+    sfx.play('click');
 
-    try {
-      const repo = RepositoryFactory.createFamilyContext(cleanCode);
-      const worldExists = await repo.root.exists();
-
-      if (!worldExists) {
-        setError("Mundo novo detectado! Você será o criador deste reino.");
-        setTimeout(() => onJoinFamily(cleanCode), 1500);
-      } else {
+    const repo = RepositoryFactory.createFamilyContext(cleanCode);
+    const exists = await repo.root.exists(); // Verifica se existe algo na raiz
+    // Nota: Firebase realtime db retorna null se path nao existe. 
+    // Nossa implementação de exists verifica snapshot.exists()
+    
+    if (exists) {
         sfx.play('success');
         onJoinFamily(cleanCode);
-      }
-    } catch (err) {
-      setError("Falha na conexão com o Nether.");
-      sfx.play('error');
-    } finally {
-      setIsChecking(false);
+    } else {
+        // Se não existe, podemos dar erro ou criar padrão (legacy behavior)
+        // Vamos manter legacy behavior mas avisar
+        sfx.play('pop');
+        onJoinFamily(cleanCode);
     }
+    setIsJoining(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#1e1e1e] flex flex-col items-center justify-center p-4 mc-font">
-      <div className="max-w-md w-full space-y-8 animate-in zoom-in duration-500">
-        <div className="text-center">
-           <h1 className="text-5xl text-gray-400 drop-shadow-[4px_4px_0_#000] uppercase font-black">MINE<span className="text-[#3fff3f]">TASK</span></h1>
-           <p className="text-xs text-zinc-500 mt-2 uppercase tracking-widest">Organizador de Missões Épicas</p>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-dirt">
+      
+      {/* Background Animado */}
+      <div className="absolute inset-0 z-0 bg-panaroma opacity-40"></div>
+      
+      {/* Container Principal */}
+      <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-500">
+        
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8 animate-float">
+            <h1 className="font-game text-5xl text-white drop-shadow-[4px_4px_0_#000] text-center leading-tight text-stroke">
+                MINE<br/><span className="text-[#55ff55]">TASK</span>
+            </h1>
+            <span className="bg-yellow-400 text-black font-game text-[8px] px-2 py-1 -rotate-6 mt-2 border-2 border-white shadow-lg">
+                EDITION: FAMILY
+            </span>
         </div>
 
-        <div className="mc-panel-pixel p-8 space-y-6 bg-[#c6c6c6]">
-            <div className="flex items-center gap-3 border-b-4 border-black/10 pb-4">
-                <Shield size={24} className="text-[#3fafff]" />
-                <h2 className="text-xl text-black font-black uppercase">Entrar no Reino</h2>
+        {/* --- MODO MENU --- */}
+        {mode === 'MENU' && (
+            <div className="flex flex-col gap-4 w-full px-8">
+                <button 
+                    onClick={() => { sfx.play('click'); setMode('CREATE'); }}
+                    className="mc-btn primary py-4 text-xl shadow-xl hover:scale-105 transition-transform"
+                >
+                    <Plus className="mr-2" size={24}/> NOVO JOGO
+                </button>
+                <button 
+                    onClick={() => { sfx.play('click'); setMode('JOIN'); }}
+                    className="mc-btn py-4 text-xl shadow-xl hover:scale-105 transition-transform"
+                >
+                    <Play className="mr-2" size={24}/> CONTINUAR
+                </button>
+                <div className="text-center mt-8 text-gray-400 font-pixel text-sm">
+                    © 2024 Lucas Arts Studios
+                </div>
             </div>
+        )}
 
-            <form onSubmit={handleConnect} className="space-y-6">
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black text-black/60 uppercase">Código do Mundo (SEED)</label>
-                    <div className="flex gap-2">
+        {/* --- MODO CRIAR (SETUP) --- */}
+        {mode === 'CREATE' && (
+            <div className="mc-panel w-full p-1 shadow-2xl">
+                <div className="bg-[#3b3b3b] p-2 border-b-2 border-[#1a1a1a] mb-2">
+                    <h2 className="font-game text-xs text-center text-white">CRIAR NOVO MUNDO</h2>
+                </div>
+                <form onSubmit={handleCreateWorld} className="p-4 flex flex-col gap-4">
+                    
+                    <div>
+                        <label className="font-pixel text-[#333] text-lg font-bold">Nome da Família/Mundo</label>
                         <input 
-                            type="text" 
-                            value={code}
-                            onChange={(e) => setCode(e.target.value.toUpperCase())}
-                            placeholder="EX: MINE-K4J2"
-                            className="flex-grow mc-slot p-4 text-2xl font-black text-black uppercase outline-none focus:bg-white transition-colors"
+                            required
+                            placeholder="Ex: Reino dos Santos"
+                            value={newWorldName}
+                            onChange={e => setNewWorldName(e.target.value)}
+                            className="mc-input w-full text-xl"
                         />
-                        <button 
-                            type="button"
-                            onClick={generateSimpleSeed}
-                            className="mc-btn-pixel bg-zinc-300 p-4"
-                            title="Gerar Novo Código"
-                        >
-                            <Wand2 size={24} className="text-mc-gold" />
+                    </div>
+
+                    <div>
+                        <label className="font-pixel text-[#333] text-lg font-bold">Nome do Herói (Filho)</label>
+                        <input 
+                            required
+                            placeholder="Ex: Enzo ou Valentina"
+                            value={childName}
+                            onChange={e => setChildName(e.target.value)}
+                            className="mc-input w-full text-xl"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="font-pixel text-[#333] text-lg font-bold flex items-center gap-2">
+                            PIN dos Pais <Shield size={14}/>
+                        </label>
+                        <input 
+                            required
+                            type="tel"
+                            maxLength={4}
+                            placeholder="****"
+                            value={parentPin}
+                            onChange={e => setParentPin(e.target.value.replace(/\D/g,''))}
+                            className="mc-input w-full text-xl tracking-widest text-center"
+                        />
+                        <span className="text-[10px] text-gray-600 font-pixel">Usado para aprovar tarefas.</span>
+                    </div>
+
+                    <div className="flex gap-2 mt-4">
+                        <button type="button" onClick={() => setMode('MENU')} className="mc-btn danger flex-1 py-3">VOLTAR</button>
+                        <button type="submit" disabled={isCreating} className="mc-btn primary flex-[2] py-3 text-lg">
+                            {isCreating ? 'CRIANDO...' : 'CRIAR MUNDO'}
                         </button>
                     </div>
+                </form>
+            </div>
+        )}
+
+        {/* --- MODO ENTRAR --- */}
+        {mode === 'JOIN' && (
+            <div className="mc-panel w-full p-1 shadow-2xl">
+                 <div className="bg-[#3b3b3b] p-2 border-b-2 border-[#1a1a1a] mb-2">
+                    <h2 className="font-game text-xs text-center text-white">CONEXÃO DIRETA</h2>
                 </div>
-
-                {error && (
-                    <div className="bg-blue-100 border-l-8 border-blue-500 p-4 animate-in slide-in-from-left">
-                        <p className="text-xs font-bold text-blue-800 uppercase">{error}</p>
+                <form onSubmit={handleJoin} className="p-6 flex flex-col gap-6">
+                    <div>
+                        <label className="font-pixel text-[#333] text-lg font-bold block text-center mb-2">CÓDIGO DO SERVIDOR</label>
+                        <input 
+                            autoFocus
+                            value={joinCode}
+                            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                            className="mc-input w-full text-2xl text-center uppercase tracking-widest p-4 border-4"
+                            placeholder="AAA-BBB-00"
+                        />
                     </div>
-                )}
 
-                <button 
-                    type="submit"
-                    disabled={isChecking}
-                    className="w-full mc-btn-pixel primary py-6 text-2xl font-black shadow-[0_8px_0_#2baf2b]"
-                >
-                    {isChecking ? 'SINCRONIZANDO...' : 'ENTRAR'}
-                </button>
-            </form>
-        </div>
-        
-        <p className="text-[10px] text-center text-zinc-500 uppercase font-bold">
-           Dica: Seus pais têm o código no painel deles!
-        </p>
+                    <div className="flex gap-2">
+                        <button type="button" onClick={() => setMode('MENU')} className="mc-btn danger flex-1 py-3">VOLTAR</button>
+                        <button type="submit" disabled={isJoining} className="mc-btn primary flex-[2] py-3 text-lg">
+                            {isJoining ? 'BUSCANDO...' : 'ENTRAR'} <ArrowRight size={18} className="ml-2"/>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        )}
+
       </div>
     </div>
   );

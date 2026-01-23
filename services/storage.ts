@@ -46,9 +46,10 @@ export class RepositoryFactory {
         maxHp: 100,
         level: 1,
         experience: 0,
+        streak: 0,
         inventory: {},
         worldBlocks: [],
-        rank: 'Aventureiro',
+        rank: 'Steve',
         sensoryMode: 'standard',
         showDayMap: true
       }),
@@ -57,7 +58,17 @@ export class RepositoryFactory {
         { id: '2', title: 'Bloco de Pedra', cost: 20, currency: 'emerald', icon: '🪨', type: 'block', blockColor: '#8b8b8b' },
         { id: '3', title: 'Tempo Extra (15min)', cost: 5, currency: 'diamond', icon: '⏳', type: 'real_life' }
       ]),
-      settings: new FirebaseRepository<any>(`${root}/settings`, { parentPin: '1234', familyName: 'Reino Unido' }),
+      settings: new FirebaseRepository<any>(`${root}/settings`, { 
+        parentPin: '1234', 
+        familyName: 'Novo Mundo',
+        rules: {
+            allowShop: true,
+            allowBuilder: true,
+            xpMultiplier: 1,
+            damageMultiplier: 1,
+            requireEvidence: true
+        }
+      }),
       messages: new FirebaseRepository<ServerMessage[]>(`${root}/messages`, []),
       activities: new FirebaseRepository<WorldActivity[]>(`${root}/activities`, []),
       globalGoal: new FirebaseRepository<GlobalGoal>(`${root}/goal`, { title: 'Passeio Especial', targetEmeralds: 1000, currentEmeralds: 0 })

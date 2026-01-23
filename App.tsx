@@ -70,7 +70,7 @@ const App: React.FC = () => {
             <Server size={18} className="text-emerald-400" />
           </div>
           <div>
-            <h1 className="font-black text-[10px] tracking-widest text-white uppercase">{familyId}</h1>
+            <h1 className="font-black text-[10px] tracking-widest text-white uppercase">{data.settings?.familyName || familyId}</h1>
             <div className="flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-red-500'}`}></span>
               <span className="text-[8px] font-black uppercase text-zinc-500">{isOnline ? 'Servidor Ativo' : 'Offline'}</span>
@@ -118,6 +118,7 @@ const App: React.FC = () => {
             rewards={data.rewards} 
             activities={data.activities}
             profile={profile}
+            settings={data.settings}
             onAddTask={actions.addTask}
             onDeleteTask={actions.deleteTask}
             onApproveTask={actions.approveTask}
@@ -126,13 +127,14 @@ const App: React.FC = () => {
             onAdjustCurrency={actions.adjustCurrency}
             onAddReward={actions.addReward}
             onDeleteReward={actions.deleteReward}
+            onUpdateSettings={actions.updateSettings}
           />
         )}
       </main>
 
       <footer className="p-4 bg-black/40 text-center border-t border-white/5">
          <p className="text-[8px] font-black uppercase text-zinc-500 tracking-widest flex items-center justify-center gap-1">
-            MineTask v4.0 • Feito com <Heart size={8} className="text-red-500 fill-current" /> por Lucas
+            MineTask v4.1 • Feito com <Heart size={8} className="text-red-500 fill-current" /> por Lucas
          </p>
       </footer>
 

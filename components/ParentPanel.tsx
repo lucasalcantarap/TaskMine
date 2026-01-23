@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Task, TaskStatus, Reward, WorldActivity, TimeOfDay, UserProfile } from '../types';
-import { Camera, CheckCircle, XCircle, Trash2, History, ShieldAlert, LayoutGrid, Gem, Settings, Eye, EyeOff, Plus, ChevronRight, Coins, X, Heart, Sparkles } from 'lucide-react';
+import { Task, TaskStatus, Reward, WorldActivity, TimeOfDay, UserProfile, SystemSettings } from '../types';
+import { Eye, Trash2, Check, X, Skull, Ghost, Zap, Settings, PlusCircle, Save, Clock, ListChecks, ArrowLeft } from 'lucide-react';
 import { sfx } from '../services/audio';
 
 interface ParentPanelProps {
@@ -9,6 +9,7 @@ interface ParentPanelProps {
   rewards: Reward[];
   activities: WorldActivity[];
   profile: UserProfile;
+  settings?: SystemSettings | null;
   onAddTask: (t: any) => void;
   onDeleteTask: (id: string) => void;
   onApproveTask: (id: string, feedback: string) => void;
@@ -17,285 +18,275 @@ interface ParentPanelProps {
   onAdjustCurrency: (amount: number, type: 'XP' | 'EMERALD' | 'DIAMOND' | 'HP') => void;
   onAddReward: (r: any) => void;
   onDeleteReward: (id: string) => void;
+  onUpdateSettings?: (pin: string, name: string, rules: any) => void;
 }
 
 const ParentPanel: React.FC<ParentPanelProps> = ({ 
-  tasks, rewards, activities, profile, onAddTask, onDeleteTask, onApproveTask, onRejectTask, onUpdateProfile, onAdjustCurrency, onAddReward, onDeleteReward 
+  tasks, profile, settings, onAddTask, onDeleteTask, onApproveTask, onRejectTask, onAdjustCurrency, onUpdateSettings
 }) => {
-  const [tab, setTab] = useState<'REVIEW' | 'TASKS' | 'STORE' | 'LOGS' | 'SETTINGS'>('REVIEW');
-  const [showNewTask, setShowNewTask] = useState(false);
+  const [activeTab, setActiveTab] = useState<'MONITOR' | 'QUESTS' | 'SYSTEM'>('MONITOR');
   
-  const [manualAmount, setManualAmount] = useState<number>(0);
-  const [manualType, setManualType] = useState<'XP' | 'EMERALD' | 'DIAMOND' | 'HP'>('EMERALD');
+  // Criador de Quest
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskPeriod, setNewTaskPeriod] = useState<TimeOfDay>(TimeOfDay.MORNING);
+  const [newTaskXP, setNewTaskXP] = useState(50);
+  const [newTaskEmeralds, setNewTaskEmeralds] = useState(10);
 
-  const [newTask, setNewTask] = useState({
-    title: '',
-    timeOfDay: TimeOfDay.MORNING,
-    emeralds: 15,
-    diamonds: 0,
-    steps: [] as string[],
-    currentStep: ''
-  });
+  // Configs
+  const [editServerName, setEditServerName] = useState(settings?.familyName || '');
+  const [editPin, setEditPin] = useState(settings?.parentPin || '');
 
-  const pending = tasks.filter(t => t.status === TaskStatus.COMPLETED);
+  const pendingTasks = tasks.filter(t => t.status === TaskStatus.COMPLETED);
+  const activeTasks = tasks.filter(t => t.status === TaskStatus.DOING || t.status === TaskStatus.STARTED);
 
   const handleCreateTask = () => {
-    if (!newTask.title || newTask.steps.length === 0) return;
+    if (!newTaskTitle) return;
     onAddTask({
-      title: newTask.title,
-      description: '',
-      timeOfDay: newTask.timeOfDay,
-      points: 50,
-      emeralds: newTask.emeralds,
-      diamonds: newTask.diamonds,
-      steps: newTask.steps.map(s => ({ id: Math.random().toString(), text: s, completed: false })),
-      durationMinutes: 15
+        title: newTaskTitle,
+        description: '',
+        timeOfDay: newTaskPeriod,
+        points: newTaskXP,
+        emeralds: newTaskEmeralds,
+        diamonds: 0,
+        steps: [{ id: '1', text: newTaskTitle, completed: false }],
+        status: TaskStatus.PENDING
     });
-    setNewTask({ title: '', timeOfDay: TimeOfDay.MORNING, emeralds: 15, diamonds: 0, steps: [], currentStep: '' });
-    setShowNewTask(false);
-    sfx.play('success');
+    setNewTaskTitle('');
+    setShowTaskModal(false);
+    sfx.play('pop');
   };
 
-  const applyManualAdjustment = (isPenalty: boolean) => {
-    const amount = isPenalty ? -Math.abs(manualAmount) : Math.abs(manualAmount);
-    if (amount === 0) return;
-    onAdjustCurrency(amount, manualType);
-    setManualAmount(0);
+  const handleSaveSettings = () => {
+    if (onUpdateSettings && settings) {
+        if (editPin.length < 4) {
+            alert("O PIN deve ter 4 números.");
+            return;
+        }
+        onUpdateSettings(editPin, editServerName, settings.rules);
+        sfx.play('success');
+        alert("Salvo!");
+    }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 mc-font">
-      {/* HUD MONITORAMENTO DO MUNDO */}
-      <div className="mc-panel-pixel bg-[#1a1a1c] border-white/5 p-6 flex flex-col md:flex-row justify-between items-center text-white gap-4">
-         <div className="flex items-center gap-4">
-            <div className="w-14 h-14 mc-slot bg-zinc-800 border-white/10 flex items-center justify-center">
-               <span className="text-3xl">{profile.hp <= 0 ? '💀' : '🛡️'}</span>
-            </div>
-            <div>
-               <h3 className="font-black uppercase text-mc-diamond">Console do Mestre <span className="text-[8px] text-zinc-500 block">Herói: {profile.name}</span></h3>
-               <div className="flex gap-4 mt-1 items-center">
-                  <div className="flex items-center gap-1"><Heart size={10} className="text-mc-red"/> <span className="text-[10px] font-black">{profile.hp}/100</span></div>
-                  <div className="flex items-center gap-1"><Sparkles size={10} className="text-emerald-500"/> <span className="text-[10px] font-black">LVL {profile.level}</span></div>
-                  <div className="flex items-center gap-1 text-mc-green"><span className="text-[10px] font-black">◆ {profile.emeralds}</span></div>
-                  <div className="flex items-center gap-1 text-mc-blue"><span className="text-[10px] font-black">💎 {profile.diamonds}</span></div>
-               </div>
-            </div>
-         </div>
-         
-         <div className="flex items-center gap-2 bg-black/40 p-2 rounded-lg border border-white/10">
-            <select 
-                value={manualType} 
-                onChange={(e) => setManualType(e.target.value as any)}
-                className="bg-zinc-800 text-[10px] font-black p-2 border-none outline-none text-white mc-font"
-            >
-                <option value="EMERALD">ESMERALDAS (◆)</option>
-                <option value="DIAMOND">DIAMANTES (💎)</option>
-                <option value="XP">EXPERIÊNCIA (XP)</option>
-                <option value="HP">VIDA (HP)</option>
-            </select>
-            <input 
-                type="number" 
-                value={manualAmount || ''} 
-                onChange={(e) => setManualAmount(Number(e.target.value))}
-                placeholder="VALOR"
-                className="w-20 bg-zinc-900 p-2 text-center text-sm font-black text-white mc-slot border-none"
-            />
-            <div className="flex gap-1">
-                <button onClick={() => applyManualAdjustment(true)} className="bg-red-600 hover:bg-red-500 p-2 mc-btn-pixel border-none text-[10px] font-black">-</button>
-                <button onClick={() => applyManualAdjustment(false)} className="bg-emerald-600 hover:bg-emerald-500 p-2 mc-btn-pixel border-none text-[10px] font-black">+</button>
-            </div>
-         </div>
-      </div>
-
-      <nav className="flex gap-2 overflow-x-auto pb-2">
-        {[
-          { id: 'REVIEW', icon: Camera, label: 'Aprovações', count: pending.length },
-          { id: 'TASKS', icon: LayoutGrid, label: 'Missões' },
-          { id: 'STORE', icon: Gem, label: 'Loja' },
-          { id: 'LOGS', icon: History, label: 'Atividades' },
-          { id: 'SETTINGS', icon: Settings, label: 'Ajustes' }
-        ].map(btn => (
-          <button 
-            key={btn.id}
-            onClick={() => { setTab(btn.id as any); sfx.play('click'); }}
-            className={`flex items-center gap-2 px-6 py-4 mc-btn-pixel whitespace-nowrap ${tab === btn.id ? 'primary' : 'bg-zinc-800 text-white border-white/5'}`}
-          >
-            <btn.icon size={16} />
-            <span className="text-xs uppercase font-black">{btn.label}</span>
-            {btn.count ? <span className="bg-red-600 px-2 rounded-sm text-[8px]">{btn.count}</span> : null}
-          </button>
-        ))}
-      </nav>
-
-      <div className="mc-panel-pixel p-8 bg-[#c6c6c6] min-h-[50vh] border-none shadow-2xl relative">
-        {tab === 'REVIEW' && (
-          <div className="space-y-6 animate-in slide-in-from-bottom">
-             <div className="flex items-center justify-between border-b-4 border-black/5 pb-2">
-                <h3 className="text-xl font-black uppercase text-black/80">Fila de Revisão</h3>
-                <span className="text-[10px] font-black bg-black/10 px-3 py-1 rounded-full uppercase">Herói Aguardando: {pending.length}</span>
-             </div>
-             {pending.length === 0 ? (
-               <div className="py-24 text-center text-black/20 font-black uppercase tracking-tighter text-2xl">O reino está em ordem.</div>
-             ) : (
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {pending.map(task => (
-                    <div key={task.id} className="mc-panel-pixel bg-white p-4 space-y-4 shadow-xl border-none">
-                       <div className="aspect-video bg-black rounded overflow-hidden border-2 border-black/10 relative">
-                          <img src={task.evidenceUrl} className="w-full h-full object-contain" />
-                       </div>
-                       <div className="flex justify-between items-center">
-                          <div>
-                             <h5 className="font-black uppercase text-black leading-tight">{task.title}</h5>
-                             <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[8px] font-black text-mc-green">◆ {task.emeralds}</span>
-                                <span className="text-[8px] font-black text-mc-blue">💎 {task.diamonds}</span>
-                                <span className="text-[8px] font-bold text-zinc-400 uppercase">| {task.timeOfDay}</span>
-                             </div>
-                          </div>
-                          <div className="flex gap-2">
-                             <button onClick={() => onRejectTask(task.id)} className="p-3 bg-red-500 hover:bg-red-400 text-white mc-btn-pixel border-none"><XCircle size={20}/></button>
-                             <button onClick={() => onApproveTask(task.id, 'Missão cumprida!')} className="p-3 bg-mc-green hover:bg-emerald-400 text-black mc-btn-pixel border-none"><CheckCircle size={20}/></button>
-                          </div>
-                       </div>
+    <div className="pb-20 bg-[#e0e0e0] min-h-screen">
+         {/* HEADER ADMIN */}
+         <div className="bg-[#263238] p-4 shadow-lg sticky top-0 z-40">
+            <div className="flex justify-between items-center max-w-5xl mx-auto">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-500 rounded-lg shadow-inner">
+                        <Settings size={20} className="text-white animate-spin-slow"/>
                     </div>
-                  ))}
-               </div>
-             )}
-          </div>
-        )}
+                    <div>
+                        <h2 className="font-game text-xs text-blue-200 tracking-widest">SERVER ADMIN</h2>
+                        <h1 className="font-pixel text-xl text-white font-bold">{settings?.familyName || 'Mundo'}</h1>
+                    </div>
+                </div>
+                <div className="bg-black/30 px-3 py-1 rounded border border-white/10 text-white font-pixel">
+                    PIN: ****
+                </div>
+            </div>
+         </div>
 
-        {tab === 'TASKS' && (
-          <div className="space-y-6">
-             <div className="flex justify-between items-center border-b-4 border-black/5 pb-2">
-                <h3 className="text-xl font-black uppercase text-black/80">Gestão de Missões</h3>
-                <button onClick={() => setShowNewTask(!showNewTask)} className="mc-btn-pixel primary text-[10px] px-6">+ NOVA MISSÃO</button>
-             </div>
+         <div className="max-w-5xl mx-auto p-4">
+            
+            {/* MENU DE ABAS */}
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                {[
+                    { id: 'MONITOR', icon: <Eye size={18}/>, label: 'MONITORAMENTO', alert: pendingTasks.length },
+                    { id: 'QUESTS', icon: <ListChecks size={18}/>, label: 'MISSÕES', alert: 0 },
+                    { id: 'SYSTEM', icon: <Settings size={18}/>, label: 'SISTEMA', alert: 0 }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`
+                            flex items-center gap-2 px-6 py-3 rounded-lg font-game text-[10px] transition-all whitespace-nowrap
+                            ${activeTab === tab.id 
+                                ? 'bg-blue-600 text-white shadow-lg translate-y-0' 
+                                : 'bg-white text-gray-600 shadow-sm hover:bg-gray-50 translate-y-1'}
+                        `}
+                    >
+                        {tab.icon} {tab.label}
+                        {tab.alert > 0 && <span className="bg-red-500 text-white px-2 rounded-full">{tab.alert}</span>}
+                    </button>
+                ))}
+            </div>
 
-             {showNewTask && (
-               <div className="bg-black/5 p-6 mc-slot border-none space-y-4 animate-in slide-in-from-top">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="space-y-1">
-                        <label className="text-[8px] font-black uppercase text-black/60">Nome da Missão</label>
-                        <input className="w-full p-3 mc-slot border-none text-black font-black" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} placeholder="Ex: Arrumar Cama" />
-                     </div>
-                     <div className="space-y-1">
-                        <label className="text-[8px] font-black uppercase text-black/60">Bioma (Período)</label>
-                        <select className="w-full p-3 mc-slot border-none font-black text-black" value={newTask.timeOfDay} onChange={e => setNewTask({...newTask, timeOfDay: e.target.value as TimeOfDay})}>
-                           <option value={TimeOfDay.MORNING}>Manhã</option>
-                           <option value={TimeOfDay.AFTERNOON}>Tarde</option>
-                           <option value={TimeOfDay.NIGHT}>Noite</option>
-                        </select>
-                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-1">
-                        <label className="text-[8px] font-black uppercase text-mc-green">Esmeraldas (◆)</label>
-                        <input type="number" className="w-full p-3 mc-slot border-none font-black text-mc-green" value={newTask.emeralds} onChange={e => setNewTask({...newTask, emeralds: Number(e.target.value)})} />
-                     </div>
-                     <div className="space-y-1">
-                        <label className="text-[8px] font-black uppercase text-mc-blue">Diamantes (💎)</label>
-                        <input type="number" className="w-full p-3 mc-slot border-none font-black text-mc-blue" value={newTask.diamonds} onChange={e => setNewTask({...newTask, diamonds: Number(e.target.value)})} />
-                     </div>
-                  </div>
-                  <div className="space-y-2">
-                     <label className="text-[8px] font-black uppercase text-black/60">Etapas da Missão</label>
-                     <div className="flex gap-2">
-                        <input className="flex-grow p-3 mc-slot border-none font-black text-black" value={newTask.currentStep} onChange={e => setNewTask({...newTask, currentStep: e.target.value})} placeholder="Ex: Dobrar lençol" />
-                        <button onClick={() => { if(newTask.currentStep) setNewTask({...newTask, steps: [...newTask.steps, newTask.currentStep], currentStep: ''})}} className="mc-btn-pixel primary px-4">+</button>
-                     </div>
-                     <div className="flex flex-wrap gap-2 pt-2">
-                        {newTask.steps.map((s, idx) => (
-                           <span key={idx} className="bg-white px-3 py-1.5 text-[8px] font-black border border-black/10 flex items-center gap-2 shadow-sm">
-                              {s} <XCircle size={12} className="text-red-500 cursor-pointer" onClick={() => setNewTask({...newTask, steps: newTask.steps.filter((_, i) => i !== idx)})}/>
-                           </span>
-                        ))}
-                     </div>
-                  </div>
-                  <div className="flex gap-4 pt-4 border-t border-black/5">
-                     <button onClick={handleCreateTask} className="flex-grow mc-btn-pixel primary py-4 text-xs font-black">CRIAR MISSÃO</button>
-                     <button onClick={() => setShowNewTask(false)} className="mc-btn-pixel py-4 px-8 text-xs font-black">CANCELAR</button>
-                  </div>
-               </div>
-             )}
+            {/* CONTEÚDO */}
+            <div className="bg-white rounded-xl shadow-xl border-2 border-gray-200 overflow-hidden min-h-[60vh]">
+                
+                {/* --- MONITOR --- */}
+                {activeTab === 'MONITOR' && (
+                    <div className="p-6 space-y-8">
+                        {/* Status em Tempo Real */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                                <h3 className="font-game text-[10px] text-blue-800 mb-3 flex items-center gap-2">
+                                    <Clock size={14}/> EM ATIVIDADE ({activeTasks.length})
+                                </h3>
+                                {activeTasks.length === 0 ? <p className="text-sm text-gray-400">Nenhuma missão iniciada.</p> : (
+                                    <ul className="space-y-2">
+                                        {activeTasks.map(t => (
+                                            <li key={t.id} className="flex justify-between text-sm bg-white p-2 rounded shadow-sm">
+                                                <span>{t.title}</span>
+                                                <span className="text-blue-500 font-bold">...</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {tasks.map(t => (
-                  <div key={t.id} className="mc-slot p-4 bg-white border-none flex justify-between items-center group hover:bg-zinc-50 transition-colors">
-                     <div>
-                        <h6 className="font-black uppercase text-black text-sm">{t.title}</h6>
-                        <p className={`text-[8px] font-bold uppercase tracking-widest ${t.status === TaskStatus.FAILED ? 'text-red-500' : 'text-zinc-400'}`}>
-                            {t.timeOfDay} • {t.status}
-                        </p>
-                     </div>
-                     <div className="flex items-center gap-4">
-                        <div className="flex gap-2 text-[8px] font-black">
-                            <span className="text-mc-green">◆ {t.emeralds}</span>
-                            <span className="text-mc-blue">💎 {t.diamonds}</span>
+                            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                                <h3 className="font-game text-[10px] text-yellow-800 mb-3 flex items-center gap-2">
+                                    <Eye size={14}/> PENDENTE APROVAÇÃO ({pendingTasks.length})
+                                </h3>
+                                {pendingTasks.length === 0 ? <p className="text-sm text-gray-400">Tudo verificado.</p> : (
+                                    <div className="space-y-4">
+                                        {pendingTasks.map(t => (
+                                            <div key={t.id} className="bg-white p-3 rounded shadow-md border border-gray-200">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="font-bold">{t.title}</span>
+                                                    <span className="text-xs bg-gray-200 px-2 rounded">{t.timeOfDay}</span>
+                                                </div>
+                                                {t.evidenceUrl && (
+                                                    <div className="h-32 bg-gray-100 mb-2 rounded overflow-hidden flex items-center justify-center">
+                                                        <img src={t.evidenceUrl} className="h-full object-cover"/>
+                                                    </div>
+                                                )}
+                                                <div className="flex gap-2 mt-2">
+                                                    <button onClick={() => onRejectTask(t.id)} className="flex-1 bg-red-100 text-red-700 py-2 rounded hover:bg-red-200 text-xs font-bold">RECUSAR</button>
+                                                    <button onClick={() => onApproveTask(t.id, 'Ok')} className="flex-1 bg-green-500 text-white py-2 rounded hover:bg-green-600 text-xs font-bold shadow">APROVAR (+{t.points}XP)</button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <button onClick={() => onDeleteTask(t.id)} className="text-red-400 hover:text-red-600 transition-colors"><Trash2 size={16}/></button>
-                     </div>
-                  </div>
-                ))}
-             </div>
-          </div>
-        )}
 
-        {tab === 'LOGS' && (
-          <div className="space-y-4">
-             <h3 className="text-xl font-black uppercase text-black/80 border-b-4 border-black/5 pb-2">Registros do Servidor</h3>
-             <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-2 custom-scroll">
-                {activities.map((log: any) => (
-                  <div key={log.id} className="mc-slot p-3 bg-white/60 border-none text-[10px] flex justify-between items-center hover:bg-white transition-colors">
-                     <div className="flex items-center gap-4">
-                        <span className="font-bold text-zinc-400 text-[8px]">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-                        <span className="font-black uppercase text-black">{log.detail}</span>
-                     </div>
-                     <span className={`font-black ${log.amount && log.amount < 0 ? 'text-red-600' : 'text-mc-green'}`}>
-                        {log.amount ? (log.amount > 0 ? '+' : '') + log.amount : ''} {log.currency || ''}
-                     </span>
-                  </div>
-                ))}
-             </div>
-          </div>
-        )}
+                        {/* Ações Rápidas de Admin */}
+                        <div className="border-t pt-6">
+                            <h3 className="font-game text-[10px] text-gray-500 mb-4">COMANDOS DO MESTRE</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <button onClick={() => onAdjustCurrency(100, 'HP')} className="p-3 bg-green-100 text-green-800 rounded hover:bg-green-200 flex flex-col items-center gap-1">
+                                    <Check size={20}/> <span className="text-xs font-bold">CURAR TUDO</span>
+                                </button>
+                                <button onClick={() => onAdjustCurrency(-10, 'HP')} className="p-3 bg-red-100 text-red-800 rounded hover:bg-red-200 flex flex-col items-center gap-1">
+                                    <Skull size={20}/> <span className="text-xs font-bold">DANO (-10HP)</span>
+                                </button>
+                                <button onClick={() => onAdjustCurrency(50, 'XP')} className="p-3 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 flex flex-col items-center gap-1">
+                                    <Zap size={20}/> <span className="text-xs font-bold">XP BÔNUS</span>
+                                </button>
+                                <button onClick={() => onAdjustCurrency(-10, 'XP')} className="p-3 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 flex flex-col items-center gap-1">
+                                    <Ghost size={20}/> <span className="text-xs font-bold">REMOVER XP</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
-        {tab === 'SETTINGS' && (
-          <div className="space-y-8 animate-in fade-in">
-             <h3 className="text-xl font-black uppercase text-black/80 border-b-4 border-black/5 pb-2">Configurações Avançadas</h3>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="mc-panel-pixel bg-white p-6 border-none space-y-4 shadow-lg">
-                   <p className="font-black uppercase text-sm text-black">Modo Baixo Sensorial</p>
-                   <button 
-                    onClick={() => onUpdateProfile({ sensoryMode: profile.sensoryMode === 'low_sensory' ? 'standard' : 'low_sensory' })}
-                    className={`mc-btn-pixel p-3 w-full ${profile.sensoryMode === 'low_sensory' ? 'primary' : 'bg-zinc-200 border-none text-zinc-400'}`}
-                   >
-                    {profile.sensoryMode === 'low_sensory' ? <EyeOff size={18} className="mx-auto" /> : <Eye size={18} className="mx-auto" />}
-                   </button>
-                </div>
-                <div className="mc-panel-pixel bg-white p-6 border-none space-y-4 shadow-lg">
-                   <p className="font-black uppercase text-sm text-black">Curas de Emergência</p>
-                   <button onClick={() => onAdjustCurrency(100, 'HP')} className="mc-btn-pixel primary p-3 w-full flex items-center justify-center gap-2">
-                       <Heart size={18}/> REVIVER / CURAR HERÓI
-                   </button>
-                </div>
-             </div>
-          </div>
-        )}
-      </div>
+                {/* --- QUESTS --- */}
+                {activeTab === 'QUESTS' && (
+                    <div className="p-6">
+                        <button 
+                            onClick={() => setShowTaskModal(true)}
+                            className="w-full py-4 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-blue-50 text-gray-500 hover:text-blue-600 rounded-xl mb-6 flex items-center justify-center gap-2 font-bold"
+                        >
+                            <PlusCircle/> Adicionar Nova Missão
+                        </button>
 
-      <div className="mc-panel-pixel p-6 bg-red-600/10 border-red-500/20 shadow-inner">
-         <div className="flex items-center gap-3 mb-4">
-            <ShieldAlert className="text-red-500" />
-            <h3 className="font-black uppercase text-red-500">Multas e Penalidades Rápidas</h3>
+                        <div className="space-y-2">
+                            {tasks.map(t => (
+                                <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-2 h-10 rounded-full ${t.timeOfDay === TimeOfDay.MORNING ? 'bg-blue-400' : t.timeOfDay === TimeOfDay.AFTERNOON ? 'bg-orange-400' : 'bg-purple-800'}`}></div>
+                                        <div>
+                                            <p className="font-bold text-gray-800">{t.title}</p>
+                                            <p className="text-xs text-gray-500">{t.points} XP • {t.emeralds} Coins</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => onDeleteTask(t.id)} className="text-red-400 hover:bg-red-50 p-2 rounded"><Trash2 size={18}/></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* --- SYSTEM --- */}
+                {activeTab === 'SYSTEM' && (
+                    <div className="p-6 max-w-lg mx-auto">
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Nome da Família</label>
+                                <input 
+                                    value={editServerName} 
+                                    onChange={e => setEditServerName(e.target.value)}
+                                    className="w-full p-2 border rounded font-pixel text-lg"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">PIN de Segurança</label>
+                                <input 
+                                    type="text"
+                                    maxLength={4}
+                                    value={editPin} 
+                                    onChange={e => setEditPin(e.target.value.replace(/\D/g,''))}
+                                    className="w-full p-2 border rounded font-pixel text-lg tracking-[0.5em]"
+                                />
+                            </div>
+                            <button onClick={handleSaveSettings} className="w-full bg-blue-600 text-white py-3 rounded font-bold shadow hover:bg-blue-700">
+                                SALVAR CONFIGURAÇÕES
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+            </div>
          </div>
-         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <button onClick={() => onAdjustCurrency(-50, 'XP')} className="mc-btn-pixel danger text-[8px] py-4 uppercase font-black">Perder 50 XP</button>
-            <button onClick={() => onAdjustCurrency(-10, 'EMERALD')} className="mc-btn-pixel danger text-[8px] py-4 uppercase font-black">Multa 10 ◆</button>
-            <button onClick={() => onAdjustCurrency(-1, 'DIAMOND')} className="mc-btn-pixel danger text-[8px] py-4 uppercase font-black">Confiscar 1 💎</button>
-            <button onClick={() => onAdjustCurrency(-20, 'HP')} className="mc-btn-pixel danger text-[8px] py-4 uppercase font-black">Dano Crítico (-20 HP)</button>
-         </div>
-      </div>
+
+         {/* MODAL CRIAR QUEST */}
+         {showTaskModal && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+                    <h3 className="font-game text-xs mb-4">NOVA MISSÃO</h3>
+                    
+                    <div className="space-y-3">
+                        <input 
+                            placeholder="Título (ex: Arrumar Cama)" 
+                            value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)}
+                            className="w-full p-2 border rounded"
+                        />
+                        <select 
+                            value={newTaskPeriod} onChange={e => setNewTaskPeriod(e.target.value as TimeOfDay)}
+                            className="w-full p-2 border rounded"
+                        >
+                            <option value={TimeOfDay.MORNING}>Manhã</option>
+                            <option value={TimeOfDay.AFTERNOON}>Tarde</option>
+                            <option value={TimeOfDay.NIGHT}>Noite</option>
+                        </select>
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <label className="text-xs text-gray-500">XP</label>
+                                <input type="number" value={newTaskXP} onChange={e => setNewTaskXP(Number(e.target.value))} className="w-full p-2 border rounded"/>
+                            </div>
+                            <div className="flex-1">
+                                <label className="text-xs text-gray-500">Esmeraldas</label>
+                                <input type="number" value={newTaskEmeralds} onChange={e => setNewTaskEmeralds(Number(e.target.value))} className="w-full p-2 border rounded"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 mt-6">
+                        <button onClick={() => setShowTaskModal(false)} className="flex-1 py-2 border rounded hover:bg-gray-50">Cancelar</button>
+                        <button onClick={handleCreateTask} className="flex-1 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700">CRIAR</button>
+                    </div>
+                </div>
+            </div>
+         )}
     </div>
   );
 };
+
 export default ParentPanel;

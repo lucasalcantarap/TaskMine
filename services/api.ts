@@ -149,7 +149,8 @@ class ApiService {
       worldBlocks: [],
       rank: 'NOOB',
       sensoryMode: 'standard',
-      showDayMap: true
+      showDayMap: true,
+      streak: 0
     };
   }
 
@@ -175,10 +176,20 @@ class ApiService {
     localStorage.setItem('db_rewards', JSON.stringify(rewards));
   }
 
-  // Fixed SystemSettings initialization: added missing 'familyName' property
+  // Fixed SystemSettings initialization: added missing 'familyName' and 'rules' property
   async getSettings(): Promise<SystemSettings> {
     const data = await this.request<SystemSettings>('/settings');
-    return data || { parentPin: '1234', familyName: 'Minetask Family' };
+    return data || { 
+      parentPin: '1234', 
+      familyName: 'Minetask Family',
+      rules: {
+        allowShop: true,
+        allowBuilder: true,
+        xpMultiplier: 1,
+        damageMultiplier: 1,
+        requireEvidence: true
+      }
+    };
   }
 
   async saveSettings(settings: SystemSettings): Promise<void> {

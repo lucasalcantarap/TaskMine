@@ -65,6 +65,7 @@ export interface UserProfile {
   maxHp: number;
   level: number;
   experience: number;
+  streak: number;
   inventory: { [key: string]: number };
   worldBlocks: PlacedBlock[];
   avatarUrl?: string;
@@ -81,9 +82,18 @@ export interface ActivityLog {
   impact?: string;
 }
 
+export interface ServerRules {
+  allowShop: boolean;
+  allowBuilder: boolean;
+  xpMultiplier: number;
+  damageMultiplier: number;
+  requireEvidence: boolean;
+}
+
 export interface SystemSettings {
   parentPin: string;
   familyName: string;
+  rules: ServerRules;
 }
 
 export interface ServerMessage {
