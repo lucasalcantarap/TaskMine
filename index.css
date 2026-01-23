@@ -4,157 +4,127 @@
 @tailwind utilities;
 
 :root {
-  /* Plastic Voxel Palette */
-  --bg-sky: #8fd3fe; /* Minecraft Day Sky */
-  --bg-void: #1e1b26; /* End Dimension Dark */
+  /* Clean Voxel Palette (High Contrast) */
+  --bg-sky: #72b6ff; 
+  --bg-grass: #5fb44d;
+  --bg-dirt: #8b5e3c;
   
-  /* Materials */
-  --mat-grass-top: #58bf58;
-  --mat-grass-side: #4ca34c;
-  --mat-dirt: #8b5e3c;
-  --mat-stone: #7d7d7d;
-  --mat-wood: #a07449;
-  --mat-wood-dark: #6d4e34;
-  --mat-diamond: #4deeea;
-  --mat-gold: #ffd700;
-  
-  /* Magic Cat Accents */
-  --magic-purple: #8e44ad;
-  --magic-pink: #ff79c6;
+  /* UI Colors */
+  --ui-panel: #f8f9fa;
+  --ui-dark: #1e1e1e;
+  --ui-accent: #ffcc00;
+  --ui-success: #2ecc71;
+  --ui-danger: #e74c3c;
+  --ui-info: #3498db;
 
-  /* UI Elements */
-  --ui-border: #2c2c2c; /* Outline grossa cartoon */
-  --ui-shadow: rgba(0,0,0,0.4);
+  /* Material Colors */
+  --color-diamond: #4deeea;
+  --color-emerald: #2ecc71;
+  --color-gold: #f1c40f;
+  --color-stone: #7f8c8d;
 
   --font-body: 'Fredoka', sans-serif;
-  --font-pixel: 'VT323', monospace;
   --font-display: 'Bangers', cursive;
+  --font-pixel: 'VT323', monospace;
 }
 
 body {
     font-family: var(--font-body);
     background-color: var(--bg-sky);
-    /* Pixel Pattern Background */
     background-image: 
-        linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px);
-    background-size: 40px 40px;
-    color: #1a1a1a;
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size: 50px 50px;
+    color: var(--ui-dark);
     -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
 }
 
+/* Tipografia de Alto Contraste */
 h1, h2, h3, .font-display {
     font-family: var(--font-display);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    text-shadow: 2px 2px 0px #fff, 4px 4px 0px rgba(0,0,0,0.2);
+    color: white;
+    text-shadow: 
+        2px 2px 0px #000,
+        -1px -1px 0px #000,
+        1px -1px 0px #000,
+        -1px 1px 0px #000,
+        1px 1px 0px #000;
 }
 
-.font-pixel {
-    font-family: var(--font-pixel);
+.text-card-title {
+    color: white;
+    text-shadow: 2px 2px 0px rgba(0,0,0,0.5);
 }
 
-/* --- VOXEL UI SYSTEM --- */
-
-/* Generic Voxel Panel */
+/* Voxel Panels (Modern Minecraft Look) */
 .panel-game {
-    background: #f0f0f0;
-    border: 4px solid var(--ui-border);
-    border-radius: 12px;
-    box-shadow: 6px 6px 0px rgba(0,0,0,0.2);
-    position: relative;
-    overflow: hidden;
+    background: white;
+    border: 4px solid #333;
+    border-radius: 8px;
+    box-shadow: 8px 8px 0px rgba(0,0,0,0.15);
+    transition: transform 0.2s;
 }
 
-/* Wood Panel Variation */
-.panel-wood {
-    background-color: var(--mat-wood);
-    background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px);
-    border-color: var(--mat-wood-dark);
-    color: #3e2723;
+.panel-dark {
+    background: #2c3e50;
+    border-color: #1a252f;
+    color: white;
 }
 
-/* Stone Panel Variation */
-.panel-stone {
-    background-color: var(--mat-stone);
-    border-color: #555;
-    color: #fff;
-    background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 10%, transparent 10%);
-    background-size: 20px 20px;
-}
-
-/* 3D Block Buttons */
+/* Botões Estilo Bloco */
 .btn-game {
     font-family: var(--font-display);
-    font-size: 1.2rem;
-    text-transform: uppercase;
-    padding: 0.8rem 1.5rem;
-    border: 3px solid var(--ui-border);
-    border-radius: 8px;
+    font-size: 1.25rem;
+    padding: 0.75rem 1.5rem;
+    border: 4px solid #222;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
     position: relative;
+    box-shadow: 0px 6px 0px #111;
     transition: all 0.1s;
-    box-shadow: 0px 4px 0px var(--ui-border);
     cursor: pointer;
+    color: white;
 }
 
 .btn-game:active {
     transform: translateY(4px);
-    box-shadow: 0px 0px 0px var(--ui-border);
+    box-shadow: 0px 2px 0px #111;
 }
 
-/* Button Colors */
-.btn-primary {
-    background: var(--mat-grass-top);
-    color: white;
-    text-shadow: 1px 1px 0 #000;
-}
-.btn-primary:hover { filter: brightness(1.1); }
+.btn-primary { background: var(--bg-grass); }
+.btn-secondary { background: var(--color-stone); }
+.btn-gold { background: var(--color-gold); color: #000; text-shadow: none; }
+.btn-danger { background: var(--ui-danger); }
 
-.btn-secondary {
-    background: var(--mat-stone);
-    color: white;
-    text-shadow: 1px 1px 0 #000;
-}
-
-.btn-danger {
-    background: #ff5252;
-    color: white;
-}
-
-.btn-gold {
-    background: var(--mat-gold);
-    color: #5d4037;
-    text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
-}
-
-/* Inputs "Crafting Slot" style */
+/* Inputs Estilo Crafting */
 .input-game {
-    background: #c6c6c6;
-    border: 3px solid #555;
-    box-shadow: inset 3px 3px 0px #000, inset -2px -2px 0px #fff;
-    padding: 0.75rem;
+    background: #e0e0e0;
+    border: 3px solid #333;
+    padding: 1rem;
     color: #000;
     font-family: var(--font-body);
-    font-weight: bold;
+    font-weight: 700;
     font-size: 1.1rem;
     width: 100%;
-    border-radius: 0;
+    box-shadow: inset 4px 4px 0px rgba(0,0,0,0.1);
 }
+
 .input-game:focus {
     outline: none;
+    border-color: var(--ui-info);
     background: #fff;
 }
 
-/* Custom Scrollbar (Minecraft Style) */
-::-webkit-scrollbar { width: 12px; }
-::-webkit-scrollbar-track { background: #333; border-left: 2px solid #000; }
+/* Scrollbar Minecraft */
+::-webkit-scrollbar { width: 14px; }
+::-webkit-scrollbar-track { background: #222; }
 ::-webkit-scrollbar-thumb { 
-    background: #888; 
-    border: 2px solid #fff;
-    box-shadow: inset -2px -2px 0 #555;
+    background: #555; 
+    border: 3px solid #222;
+    box-shadow: inset 2px 2px 0 #888;
 }

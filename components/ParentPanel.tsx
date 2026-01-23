@@ -21,7 +21,6 @@ interface ParentPanelProps {
   onUpdateSettings?: (pin: string, name: string, rules: any) => void;
 }
 
-// Completed ParentPanel component to provide functional UI and fix missing default export
 const ParentPanel: React.FC<ParentPanelProps> = ({ 
   tasks, rewards, activities, profile, settings, 
   onAddTask, onDeleteTask, onApproveTask, onRejectTask, 
@@ -30,134 +29,106 @@ const ParentPanel: React.FC<ParentPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'REVIEW' | 'QUESTS' | 'LOG' | 'ADMIN' | 'GUIDE'>('REVIEW');
   const [inspectingTask, setInspectingTask] = useState<Task | null>(null);
 
-  // Task Form State
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskTime, setNewTaskTime] = useState<TimeOfDay>(TimeOfDay.MORNING);
-  const [comboMode, setComboMode] = useState(false);
-
-  // Admin Custom Value State
-  const [adminValue, setAdminValue] = useState<number>(10);
-  const [rewardTitle, setRewardTitle] = useState('');
-  const [rewardCost, setRewardCost] = useState(50);
-
+  
   const pendingTasks = tasks.filter(t => t.status === TaskStatus.COMPLETED);
 
   const handleAddTask = () => {
       if (!newTaskTitle) return;
       onAddTask({
           title: newTaskTitle, description: '', timeOfDay: newTaskTime,
-          points: 50, emeralds: 10, diamonds: 0, steps: [], status: TaskStatus.PENDING
+          points: 50, emeralds: 5, diamonds: 0, steps: [], status: TaskStatus.PENDING
       });
       setNewTaskTitle('');
       sfx.play('pop');
   };
 
-  const handleCreateCombo = () => {
-      const comboTasks = ["Escovar Presas", "Arrumar Caixão", "Limpar Capa"];
-      comboTasks.forEach(t => {
-        onAddTask({
-          title: t, description: 'Combo Matinal', timeOfDay: TimeOfDay.MORNING,
-          points: 30, emeralds: 5, diamonds: 0, steps: [], status: TaskStatus.PENDING
-        });
-      });
-      sfx.play('levelup');
-      setComboMode(false);
-  };
-
-  const handleAddReward = () => {
-      if (!rewardTitle) return;
-      onAddReward({
-          title: rewardTitle, cost: rewardCost, currency: 'emerald', icon: '🏆', type: 'real_life'
-      });
-      setRewardTitle('');
-      sfx.play('pop');
-  };
-
   return (
-    <div className="w-full text-gray-100">
-        {/* DASHBOARD HEADER */}
-        <div className="panel-stone p-6 mb-8 border-b-8 border-gray-700">
-            <div className="flex justify-between items-center">
+    <div className="w-full text-gray-100 max-w-6xl mx-auto">
+        {/* HEADER PAINEL DOS PAIS */}
+        <div className="bg-gray-800 p-6 mb-8 rounded-xl border-4 border-gray-700 shadow-2xl">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-purple-900 rounded border-2 border-purple-400 shadow-lg">
-                        <Shield size={32} className="text-purple-300" />
+                    <div className="p-4 bg-indigo-600 rounded-lg border-4 border-indigo-900 shadow-lg">
+                        <Shield size={40} className="text-white" />
                     </div>
                     <div>
-                        <h1 className="font-display text-3xl text-purple-300 tracking-wide drop-shadow-md">Controle do Mestre</h1>
-                        <p className="text-sm text-gray-400 font-pixel">Mundo: <span className="text-white font-bold">{settings?.familyName}</span></p>
+                        <h1 className="font-display text-4xl text-white drop-shadow-md">Painel dos Pais</h1>
+                        <p className="text-indigo-300 font-black text-sm uppercase">Gerenciar Mundo: {settings?.familyName}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3 bg-gray-900 px-4 py-2 border-4 border-gray-600 rounded">
-                    <Heart size={20} className="text-red-500 fill-current"/> 
-                    <span className="font-pixel text-white text-2xl">{profile.hp} HP</span>
+                <div className="flex items-center gap-4 bg-black/40 px-6 py-3 border-4 border-gray-700 rounded-lg">
+                    <div className="text-center">
+                        <p className="text-[10px] text-gray-400 font-black uppercase">Vida da Criança</p>
+                        <div className="flex gap-1 justify-center mt-1">
+                            {[...Array(5)].map((_,i) => (
+                                <Heart key={i} size={20} className={i < Math.ceil(profile.hp/20) ? "fill-red-500 text-red-700" : "fill-gray-800"} />
+                            ))}
+                        </div>
+                    </div>
+                    <div className="h-10 w-px bg-gray-700 mx-2"></div>
+                    <div className="text-center">
+                        <p className="text-[10px] text-gray-400 font-black uppercase">Nível Atual</p>
+                        <p className="font-display text-2xl text-yellow-400">{profile.level}</p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        {/* NAVIGATION - Folder Style */}
-        <div className="flex gap-1 pl-4 items-end overflow-x-auto">
+        {/* NAVEGAÇÃO */}
+        <div className="flex gap-2 mb-1 overflow-x-auto pb-2">
             {[
-                { id: 'REVIEW', label: 'JULGAR', icon: <Check size={18}/>, badge: pendingTasks.length, color: 'bg-green-700' },
-                { id: 'QUESTS', label: 'MISSÕES', icon: <Scroll size={18}/>, color: 'bg-blue-700' },
-                { id: 'GUIDE', label: 'MANUAL', icon: <BookOpen size={18}/>, color: 'bg-yellow-700' },
-                { id: 'LOG', label: 'REGISTROS', icon: <Activity size={18}/>, color: 'bg-gray-600' },
-                { id: 'ADMIN', label: 'PERIGO', icon: <Skull size={18}/>, color: 'bg-red-900' }
+                { id: 'REVIEW', label: 'Conferir', icon: <Check size={20}/>, badge: pendingTasks.length, color: 'bg-green-600' },
+                { id: 'QUESTS', label: 'Tarefas', icon: <Scroll size={20}/>, color: 'bg-blue-600' },
+                { id: 'GUIDE', label: 'Instruções', icon: <BookOpen size={20}/>, color: 'bg-yellow-600' },
+                { id: 'LOG', label: 'Histórico', icon: <Activity size={20}/>, color: 'bg-gray-600' },
+                { id: 'ADMIN', label: 'Ajustes', icon: <Skull size={20}/>, color: 'bg-red-700' }
             ].map(tab => (
                 <button 
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => { setActiveTab(tab.id as any); sfx.play('click'); }}
                     className={`
-                        px-6 py-3 rounded-t-lg border-t-4 border-l-4 border-r-4 border-black/20 font-display text-lg flex items-center gap-2 transition-all whitespace-nowrap
-                        ${activeTab === tab.id ? `${tab.color} text-white translate-y-1` : 'bg-gray-800 text-gray-500 hover:bg-gray-700'}
+                        px-6 py-3 rounded-t-lg font-display text-xl flex items-center gap-3 transition-all whitespace-nowrap border-4 border-b-0
+                        ${activeTab === tab.id ? `${tab.color} text-white border-black/20` : 'bg-gray-800 text-gray-500 border-transparent'}
                     `}
                 >
                     {tab.icon} {tab.label}
-                    {tab.badge ? <span className="bg-red-500 text-white text-xs font-bold px-2 rounded-full animate-bounce">{tab.badge}</span> : null}
+                    {tab.badge ? <span className="bg-red-500 text-white text-xs font-black px-2 py-0.5 rounded-full">{tab.badge}</span> : null}
                 </button>
             ))}
         </div>
 
-        {/* CONTENT AREA */}
-        <div className={`
-            panel-game min-h-[500px] p-6 relative border-t-0 rounded-tl-none
-            ${activeTab === 'ADMIN' ? 'bg-[#2a0a0a] border-red-900' : 
-              activeTab === 'GUIDE' ? 'bg-[#3e2723] border-[#5d4037]' : 'bg-[#333] border-gray-600'}
-        `}>
+        {/* ÁREA DE CONTEÚDO */}
+        <div className="bg-gray-800 border-4 border-gray-700 p-6 rounded-b-xl min-h-[500px] shadow-inner">
             
-            {/* --- REVIEW TAB --- */}
             {activeTab === 'REVIEW' && (
                 <div className="space-y-6">
                     {pendingTasks.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-gray-500 opacity-70">
-                            <Check size={80} className="mb-4 text-green-500"/>
-                            <h3 className="text-3xl font-display text-white">Tudo Tranquilo</h3>
-                            <p className="font-pixel">Nenhum herói requisitou aprovação.</p>
+                        <div className="text-center py-24 opacity-50">
+                            <Check size={80} className="mx-auto text-green-500 mb-6"/>
+                            <h3 className="text-3xl font-display text-white">Nenhuma tarefa pendente</h3>
+                            <p className="font-bold text-gray-400">As fotos que a criança tirar aparecerão aqui para sua aprovação.</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {pendingTasks.map(task => (
-                                <div key={task.id} className="bg-gray-800 border-4 border-yellow-500 rounded-lg overflow-hidden shadow-xl">
-                                    <div className="p-3 bg-yellow-600 flex justify-between items-center">
-                                        <h3 className="font-display text-white text-xl">{task.title}</h3>
-                                        <span className="text-xs font-bold bg-black/30 text-white px-2 py-1 rounded">AGUARDANDO</span>
+                                <div key={task.id} className="bg-gray-900 border-4 border-yellow-500 rounded-xl overflow-hidden shadow-2xl">
+                                    <div className="p-4 bg-yellow-600 flex justify-between items-center">
+                                        <h3 className="font-display text-2xl text-white">{task.title}</h3>
+                                        <span className="text-xs font-black bg-black/40 text-white px-3 py-1 rounded-full uppercase">Esperando</span>
                                     </div>
-                                    
-                                    <div className="p-4 bg-black/50 flex items-center justify-center min-h-[250px]">
-                                        {task.evidenceUrl ? (
-                                            <img 
-                                                src={task.evidenceUrl} 
-                                                className="max-h-60 max-w-full border-4 border-white cursor-pointer hover:scale-105 transition-transform" 
-                                                alt="Prova"
-                                                onClick={() => setInspectingTask(task)}
-                                            />
-                                        ) : (
-                                            <span className="text-gray-500 italic font-bold">Sem Foto</span>
-                                        )}
+                                    <div className="p-4 flex items-center justify-center bg-black min-h-[300px]">
+                                        <img 
+                                            src={task.evidenceUrl} 
+                                            className="max-h-72 border-4 border-white shadow-lg cursor-zoom-in" 
+                                            alt="Prova da tarefa"
+                                            onClick={() => setInspectingTask(task)}
+                                        />
                                     </div>
-
-                                    <div className="p-4 flex gap-2 bg-gray-900">
-                                        <button onClick={() => onRejectTask(task.id)} className="btn-game btn-danger flex-1">RECUSAR</button>
-                                        <button onClick={() => onApproveTask(task.id, 'Awesome!')} className="btn-game btn-primary flex-1">APROVAR</button>
+                                    <div className="p-4 flex gap-4 bg-gray-900">
+                                        <button onClick={() => onRejectTask(task.id)} className="btn-game btn-danger flex-1 text-lg">RECUSAR</button>
+                                        <button onClick={() => onApproveTask(task.id, 'Muito bem!')} className="btn-game btn-primary flex-1 text-lg">APROVAR</button>
                                     </div>
                                 </div>
                             ))}
@@ -166,20 +137,19 @@ const ParentPanel: React.FC<ParentPanelProps> = ({
                 </div>
             )}
 
-            {/* --- QUESTS TAB --- */}
             {activeTab === 'QUESTS' && (
-                <div className="space-y-6">
-                    <div className="bg-black/30 p-4 rounded border-2 border-gray-500">
-                        <h3 className="font-display text-xl mb-4 text-blue-300">Nova Missão</h3>
-                        <div className="flex flex-wrap gap-4">
+                <div className="space-y-8">
+                    <div className="bg-gray-700 p-6 rounded-xl border-4 border-blue-600 shadow-xl">
+                        <h3 className="font-display text-3xl text-blue-300 mb-6">Criar Nova Tarefa</h3>
+                        <div className="flex flex-col md:flex-row gap-4">
                             <input 
-                                className="input-game flex-1 min-w-[200px]" 
-                                placeholder="Título da Missão" 
+                                className="input-game flex-grow text-xl" 
+                                placeholder="Ex: Arrumar o quarto" 
                                 value={newTaskTitle} 
                                 onChange={e => setNewTaskTitle(e.target.value)} 
                             />
                             <select 
-                                className="input-game w-40" 
+                                className="input-game md:w-48 font-black" 
                                 value={newTaskTime} 
                                 onChange={e => setNewTaskTime(e.target.value as TimeOfDay)}
                             >
@@ -187,90 +157,104 @@ const ParentPanel: React.FC<ParentPanelProps> = ({
                                 <option value={TimeOfDay.AFTERNOON}>Tarde</option>
                                 <option value={TimeOfDay.NIGHT}>Noite</option>
                             </select>
-                            <button onClick={handleAddTask} className="btn-game btn-primary">ADICIONAR</button>
+                            <button onClick={handleAddTask} className="btn-game btn-primary px-8">CRIAR</button>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {tasks.map(task => (
-                            <div key={task.id} className="bg-gray-800 p-3 rounded flex justify-between items-center border border-gray-700">
-                                <div>
-                                    <p className="font-bold">{task.title}</p>
-                                    <p className="text-xs text-gray-500">{task.timeOfDay}</p>
+                            <div key={task.id} className="bg-gray-900 p-4 rounded-lg flex justify-between items-center border-4 border-gray-700 group">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 flex items-center justify-center font-display text-2xl rounded-md border-4 ${task.status === TaskStatus.APPROVED ? 'bg-green-600 border-green-900' : 'bg-gray-800 border-gray-700'}`}>
+                                        {task.status === TaskStatus.APPROVED ? <Check/> : task.title.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <p className="font-black text-white text-lg">{task.title}</p>
+                                        <p className="text-xs text-blue-400 font-bold uppercase">{task.timeOfDay} • {task.points} Exp</p>
+                                    </div>
                                 </div>
-                                <button onClick={() => onDeleteTask(task.id)} className="text-red-500 hover:text-red-400 p-1">
-                                    <Trash2 size={18}/>
-                                </button>
+                                <button onClick={() => onDeleteTask(task.id)} className="p-3 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2/></button>
                             </div>
                         ))}
                     </div>
                 </div>
             )}
 
-            {/* --- GUIDE TAB --- */}
             {activeTab === 'GUIDE' && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-                    <div className="text-center mb-8">
-                         <h2 className="font-display text-4xl text-yellow-400 mb-2">Manual do Mestre</h2>
-                         <p className="text-orange-200">Como guiar seu pequeno herói nesta jornada.</p>
+                <div className="max-w-4xl mx-auto space-y-12 py-6 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="text-center">
+                        <h2 className="font-display text-5xl text-yellow-400 mb-4">Como o Jogo Funciona</h2>
+                        <p className="text-gray-300 text-lg font-bold">Guia rápido para começar a usar o MineTask com seu filho.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-[#5d4037] p-5 rounded border-2 border-[#8d6e63] shadow-lg">
-                            <h3 className="font-display text-xl text-green-300">Ciclo de Recompensas</h3>
-                            <p className="text-sm mt-2">Aprove tarefas concluídas para dar XP e Esmeraldas ao jogador. Use Esmeraldas para comprar blocos ou recompensas reais.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div className="bg-gray-700 p-6 rounded-xl border-t-8 border-blue-500 shadow-xl">
+                            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center font-display text-2xl text-white mb-4">1</div>
+                            <h3 className="font-display text-2xl text-white mb-3">Crie Tarefas</h3>
+                            <p className="text-sm text-gray-300 leading-relaxed font-bold">Adicione tarefas na aba <strong>"Tarefas"</strong>. Elas aparecerão para a criança nos períodos de Manhã, Tarde ou Noite.</p>
                         </div>
-                        <div className="bg-[#5d4037] p-5 rounded border-2 border-[#8d6e63] shadow-lg">
-                            <h3 className="font-display text-xl text-red-300">Penalidades</h3>
-                            <p className="text-sm mt-2">Você pode remover HP se o jogador não cumprir as missões. Use com sabedoria para manter o desafio!</p>
+                        <div className="bg-gray-700 p-6 rounded-xl border-t-8 border-yellow-500 shadow-xl">
+                            <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center font-display text-2xl text-white mb-4">2</div>
+                            <h3 className="font-display text-2xl text-white mb-3">Conferir Fotos</h3>
+                            <p className="text-sm text-gray-300 leading-relaxed font-bold">A criança tira uma foto provando que fez a tarefa. Você confere e aprova na aba <strong>"Conferir"</strong>.</p>
                         </div>
+                        <div className="bg-gray-700 p-6 rounded-xl border-t-8 border-green-500 shadow-xl">
+                            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center font-display text-2xl text-white mb-4">3</div>
+                            <h3 className="font-display text-2xl text-white mb-3">Premiação</h3>
+                            <p className="text-sm text-gray-300 leading-relaxed font-bold">Ao aprovar, a criança ganha <strong>Moedas</strong>. Ela usa as moedas para comprar itens ou construir o mundo dela.</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-blue-900/30 p-8 rounded-xl border-4 border-blue-500/50">
+                        <h3 className="font-display text-2xl text-blue-300 mb-4 flex items-center gap-3"><AlertCircle/> Dica Importante</h3>
+                        <p className="text-blue-100 font-bold leading-relaxed">
+                            O jogo é focado no reforço positivo. Sempre tente dar um feedback carinhoso para seu filho. 
+                            O sistema de "Vida" (HP) serve apenas para mostrar quando rotinas estão sendo deixadas de lado por muito tempo.
+                        </p>
                     </div>
                 </div>
             )}
 
-            {/* --- LOG TAB --- */}
             {activeTab === 'LOG' && (
-                <div className="space-y-2">
+                <div className="space-y-3">
+                    <h3 className="text-gray-400 font-black text-xs uppercase mb-4 tracking-widest">Atividades Recentes</h3>
                     {activities.length === 0 ? (
-                        <p className="text-center py-10 text-gray-500 italic">Nenhuma atividade registrada.</p>
+                        <p className="text-center py-12 text-gray-500 italic font-bold">Nenhum registro encontrado.</p>
                     ) : (
                         activities.map((act, i) => (
-                            <div key={act.id || i} className="bg-black/20 p-3 rounded border-l-4 border-blue-500 flex justify-between items-center">
+                            <div key={i} className="bg-black/30 p-4 rounded-lg flex justify-between items-center border border-gray-700">
                                 <div>
-                                    <p className="text-sm">{act.detail}</p>
-                                    <p className="text-[10px] text-gray-500">{new Date(act.timestamp).toLocaleString()}</p>
+                                    <p className="text-white font-bold">{act.detail}</p>
+                                    <p className="text-[10px] text-gray-500 font-black uppercase">{new Date(act.timestamp).toLocaleString()}</p>
                                 </div>
-                                {act.amount && (
-                                    <span className={`text-xs font-bold ${act.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {act.amount > 0 ? '+' : ''}{act.amount} {act.currency}
-                                    </span>
-                                )}
+                                <span className={`font-display text-xl ${act.amount && act.amount > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {act.amount && `${act.amount > 0 ? '+' : ''}${act.amount}`}
+                                </span>
                             </div>
                         ))
                     )}
                 </div>
             )}
 
-            {/* --- ADMIN TAB --- */}
             {activeTab === 'ADMIN' && (
                 <div className="space-y-8">
-                    <div className="bg-red-950/40 p-6 rounded border-2 border-red-900">
-                         <h3 className="font-display text-2xl text-red-400 mb-6 flex items-center gap-2"><AlertCircle/> Comandos de Crise</h3>
+                    <div className="bg-red-900/20 p-8 rounded-xl border-4 border-red-600 shadow-xl">
+                         <h3 className="font-display text-3xl text-red-500 mb-6 flex items-center gap-3"><Sword/> Painel de Controle Crítico</h3>
                          
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <p className="text-xs font-bold text-gray-400">AJUSTE DE SAÚDE</p>
-                                <div className="flex gap-2">
-                                    <button onClick={() => onAdjustCurrency(-10, 'HP')} className="btn-game btn-danger flex-1">DANO (-10 HP)</button>
-                                    <button onClick={() => onAdjustCurrency(10, 'HP')} className="btn-game btn-primary flex-1">CURA (+10 HP)</button>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                                <p className="text-sm font-black text-red-300 uppercase tracking-widest">Vida e Saúde</p>
+                                <div className="flex gap-4">
+                                    <button onClick={() => onAdjustCurrency(-20, 'HP')} className="btn-game btn-danger flex-1 py-4">Tirar Vida (-20)</button>
+                                    <button onClick={() => onAdjustCurrency(20, 'HP')} className="btn-game bg-green-700 text-white border-green-900 flex-1 py-4">Dar Vida (+20)</button>
                                 </div>
                             </div>
                             
-                            <div className="space-y-2">
-                                <p className="text-xs font-bold text-gray-400">AJUSTE DE MOEDAS (ESMERALDAS)</p>
-                                <div className="flex gap-2">
-                                    <button onClick={() => onAdjustCurrency(-50, 'EMERALD')} className="btn-game bg-red-700 text-white border-red-900 flex-1">-50 🟢</button>
-                                    <button onClick={() => onAdjustCurrency(50, 'EMERALD')} className="btn-game bg-green-700 text-white border-green-900 flex-1">+50 🟢</button>
+                            <div className="space-y-4">
+                                <p className="text-sm font-black text-green-300 uppercase tracking-widest">Bônus de Moedas</p>
+                                <div className="flex gap-4">
+                                    <button onClick={() => onAdjustCurrency(50, 'EMERALD')} className="btn-game bg-green-600 text-white border-green-900 flex-1 py-4">Bônus +50 🟢</button>
+                                    <button onClick={() => onAdjustCurrency(10, 'DIAMOND')} className="btn-game bg-cyan-600 text-white border-cyan-900 flex-1 py-4">Bônus +10 💎</button>
                                 </div>
                             </div>
                          </div>
@@ -279,12 +263,16 @@ const ParentPanel: React.FC<ParentPanelProps> = ({
             )}
         </div>
 
-        {/* IMAGE INSPECTOR MODAL */}
+        {/* MODAL DE INSPEÇÃO DE IMAGEM */}
         {inspectingTask && (
-            <div className="fixed inset-0 bg-black/90 z-[300] flex items-center justify-center p-4" onClick={() => setInspectingTask(null)}>
-                <div className="relative max-w-4xl w-full flex flex-col items-center">
-                    <img src={inspectingTask.evidenceUrl} className="max-h-[80vh] border-8 border-white shadow-2xl" alt="Prova completa" />
-                    <button className="mt-6 btn-game btn-secondary px-10" onClick={() => setInspectingTask(null)}>FECHAR</button>
+            <div className="fixed inset-0 bg-black/95 z-[300] flex flex-col items-center justify-center p-6" onClick={() => setInspectingTask(null)}>
+                <div className="relative max-w-5xl w-full flex flex-col items-center">
+                    <img src={inspectingTask.evidenceUrl} className="max-h-[85vh] border-8 border-white shadow-2xl rounded-lg" alt="Imagem completa" />
+                    <div className="mt-8 flex gap-6 w-full max-w-md">
+                        <button onClick={(e) => { e.stopPropagation(); onRejectTask(inspectingTask.id); setInspectingTask(null); }} className="btn-game btn-danger flex-1 py-5 text-2xl">RECUSAR</button>
+                        <button onClick={(e) => { e.stopPropagation(); onApproveTask(inspectingTask.id, 'Ótimo trabalho!'); setInspectingTask(null); }} className="btn-game btn-primary flex-1 py-5 text-2xl">APROVAR</button>
+                    </div>
+                    <button className="absolute top-0 right-0 p-4 text-white hover:text-red-500 transition-colors" onClick={() => setInspectingTask(null)}><X size={48}/></button>
                 </div>
             </div>
         )}
