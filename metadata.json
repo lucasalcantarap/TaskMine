@@ -1,0 +1,7 @@
+{
+  "name": "MineTask 3.5: Master Edition",
+  "description": "Organizador infantil pixelado com foco em neurodiversidade, monitoramento remoto e evidências fotográficas.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

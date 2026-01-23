@@ -1,0 +1,83 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: 'Minecraftia';
+    src: url('https://db.onlinewebfonts.com/t/6ab5395995801c877f09e25d48723c21.ttf') format('truetype');
+}
+
+:root {
+  --mc-green: #10b981;
+  --mc-blue: #3b82f6;
+  --mc-red: #ef4444;
+  --mc-gold: #fbbf24;
+  --mc-deepslate: #09090b;
+  --mc-panel: #c6c6c6;
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #0c0c0d;
+    color: #e1e1e6;
+    background-image: radial-gradient(circle at center, #1a1a1c 0%, #0c0c0d 100%);
+    overflow-x: hidden;
+}
+
+.mc-font { font-family: 'VT323', monospace; }
+
+/* MODO SENSORIAL (Low Sensory) */
+.sensory-low * {
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+.mc-panel-pixel {
+    background: rgba(198, 198, 198, 0.9);
+    border: 4px solid;
+    border-color: #ffffff #555555 #555555 #ffffff;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.mc-slot {
+    background: #8b8b8b;
+    border: 4px solid;
+    border-color: #373737 #ffffff #ffffff #373737;
+    image-rendering: pixelated;
+}
+
+.mc-btn-pixel {
+    @apply relative px-4 py-2 mc-font transition-all active:translate-y-1;
+    background: #8b8b8b;
+    border: 3px solid;
+    border-color: #ffffff #555555 #555555 #ffffff;
+    color: #000;
+}
+
+.mc-btn-pixel.primary { background: var(--mc-green); color: white; border-color: #ffffff #065f46 #065f46 #ffffff; }
+.mc-btn-pixel.danger { background: var(--mc-red); color: white; border-color: #ffffff #7f1d1d #7f1d1d #ffffff; }
+
+/* Estilização Moderna para as Barras */
+.hud-xp-fill {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+  100% { transform: translateY(0px); }
+}
+
+.floating { animation: float 3s ease-in-out infinite; }
+
+/* Scrollbar Minecraft Style */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: #1a1a1c; }
+::-webkit-scrollbar-thumb { 
+    background: #373737; 
+    border: 2px solid #1a1a1c;
+}

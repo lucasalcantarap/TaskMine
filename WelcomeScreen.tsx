@@ -1,0 +1,1 @@
+// WelcomeScreen será incorporado ao App.tsx simplificado, mas caso exista o arquivo:
