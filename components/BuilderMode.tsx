@@ -108,7 +108,7 @@ const BuilderMode: React.FC<BuilderModeProps> = ({ profile, rewards, onUpdatePro
         newInventory[b.id] = (newInventory[b.id] || 0) + 1;
       });
       onUpdateProfile({ worldBlocks: [], inventory: newInventory });
-      sfx.play('boom');
+      sfx.play('error');
     }
   };
 

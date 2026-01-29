@@ -240,9 +240,20 @@ export const useGameController = (familyId: string | null) => {
         repos.current.profile.save({ ...profile, ...updates });
       },
 
-      updateSettings: (pin: string, familyName: string, rules: any) => {
+      updateSettings: (newSettings: SystemSettings) => {
         if (!repos.current || !settings) return;
-        repos.current.settings.save({ ...settings, parentPin: pin, familyName, rules });
+        repos.current.settings.save(newSettings);
+      },
+
+      onSendMessage: (text: string) => {
+        if (!repos.current) return;
+        const msg: ServerMessage = {
+          text,
+          sender: 'MASTER',
+          timestamp: Date.now(),
+          read: false
+        };
+        repos.current.messages.addToList(msg);
       },
 
       addReward: (r: Reward) => repos.current?.rewards.save([...rewards, { ...r, id: Date.now().toString() }]),

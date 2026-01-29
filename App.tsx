@@ -150,7 +150,7 @@ const App: React.FC = () => {
             onAddReward={actions.addReward}
             onDeleteReward={actions.deleteReward}
             onUpdateSettings={actions.updateSettings}
-            onSendMessage={actions.onSendMessage as any}
+            onSendMessage={actions.onSendMessage}
           />
         )}
       </main>
