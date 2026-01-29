@@ -2,7 +2,7 @@ import { db } from './firebase';
 import { IRepository, ServerMessage, WorldActivity, GlobalGoal, TimeOfDay, TaskStatus } from '../types';
 
 export class FirebaseRepository<T> implements IRepository<T> {
-  constructor(private path: string, private defaultValue: T) {}
+  constructor(private path: string, private defaultValue: T) { }
 
   subscribe(callback: (data: T) => void): () => void {
     const dbRef = db.ref(this.path);
@@ -41,38 +41,38 @@ export class RepositoryFactory {
     const root = `families/${familyId}`;
     return {
       root: new FirebaseRepository<any>(root, null),
-      
+
       // EXAMPLES OF GOTHIC / CASTLE TASKS
       tasks: new FirebaseRepository<any[]>(`${root}/tasks`, [
         {
-            id: 't1', title: 'Escovar as Presas', description: 'Higiene Matinal', 
-            timeOfDay: TimeOfDay.MORNING, points: 50, emeralds: 5, diamonds: 0, 
-            status: TaskStatus.PENDING, steps: []
+          id: 't1', title: 'Escovar as Presas', description: 'Higiene Matinal',
+          timeOfDay: TimeOfDay.MORNING, points: 50, emeralds: 5, diamonds: 0,
+          status: TaskStatus.PENDING, steps: []
         },
         {
-            id: 't2', title: 'Equipar Armadura', description: 'Trocar de roupa para a escola', 
-            timeOfDay: TimeOfDay.MORNING, points: 50, emeralds: 5, diamonds: 0, 
-            status: TaskStatus.PENDING, steps: []
+          id: 't2', title: 'Equipar Armadura', description: 'Trocar de roupa para a escola',
+          timeOfDay: TimeOfDay.MORNING, points: 50, emeralds: 5, diamonds: 0,
+          status: TaskStatus.PENDING, steps: []
         },
         {
-            id: 't3', title: 'Pergaminho da Sabedoria', description: 'Fazer o dever de casa', 
-            timeOfDay: TimeOfDay.AFTERNOON, points: 100, emeralds: 15, diamonds: 1, 
-            status: TaskStatus.PENDING, steps: []
+          id: 't3', title: 'Pergaminho da Sabedoria', description: 'Fazer o dever de casa',
+          timeOfDay: TimeOfDay.AFTERNOON, points: 100, emeralds: 15, diamonds: 1,
+          status: TaskStatus.PENDING, steps: []
         },
         {
-            id: 't4', title: 'Limpar a Masmorra', description: 'Guardar os brinquedos', 
-            timeOfDay: TimeOfDay.AFTERNOON, points: 80, emeralds: 10, diamonds: 0, 
-            status: TaskStatus.PENDING, steps: []
+          id: 't4', title: 'Limpar a Masmorra', description: 'Guardar os brinquedos',
+          timeOfDay: TimeOfDay.AFTERNOON, points: 80, emeralds: 10, diamonds: 0,
+          status: TaskStatus.PENDING, steps: []
         },
         {
-            id: 't5', title: 'Poção de Banho', description: 'Tomar banho', 
-            timeOfDay: TimeOfDay.NIGHT, points: 60, emeralds: 5, diamonds: 0, 
-            status: TaskStatus.PENDING, steps: []
+          id: 't5', title: 'Poção de Banho', description: 'Tomar banho',
+          timeOfDay: TimeOfDay.NIGHT, points: 60, emeralds: 5, diamonds: 0,
+          status: TaskStatus.PENDING, steps: []
         },
         {
-            id: 't6', title: 'Descanso na Cripta', description: 'Ir dormir no horário', 
-            timeOfDay: TimeOfDay.NIGHT, points: 100, emeralds: 10, diamonds: 0, 
-            status: TaskStatus.PENDING, steps: []
+          id: 't6', title: 'Descanso na Cripta', description: 'Ir dormir no horário',
+          timeOfDay: TimeOfDay.NIGHT, points: 100, emeralds: 10, diamonds: 0,
+          status: TaskStatus.PENDING, steps: []
         }
       ]),
 
@@ -102,22 +102,25 @@ export class RepositoryFactory {
         { id: 'r1', title: 'Banquete de Pizza', cost: 200, currency: 'emerald', icon: '🍕', type: 'real_life' },
         { id: 'r2', title: 'Sessão de Cinema', cost: 150, currency: 'emerald', icon: '🎬', type: 'real_life' },
         { id: 'r3', title: 'Passeio no Parque', cost: 100, currency: 'emerald', icon: '🌳', type: 'real_life' },
-        { id: 'r4', title: 'Tempo de Tela (30m)', cost: 1, currency: 'diamond', icon: '📱', type: 'real_life' }
+        { id: 'r4', title: 'Tempo de Tela (30m)', cost: 1, currency: 'diamond', icon: '📱', type: 'real_life' },
+        { id: 'p1', title: 'Poção de Vida', cost: 20, currency: 'emerald', icon: '🧪', type: 'potion' }
       ]),
 
-      settings: new FirebaseRepository<any>(`${root}/settings`, { 
-        parentPin: '1234', 
+      settings: new FirebaseRepository<any>(`${root}/settings`, {
+        parentPin: '1234',
         familyName: 'Castelo Drácula',
+        lastReset: '',
         rules: {
-            allowShop: true,
-            allowBuilder: true,
-            xpMultiplier: 1,
-            damageMultiplier: 1,
-            requireEvidence: true
+          allowShop: true,
+          allowBuilder: true,
+          xpMultiplier: 1,
+          damageMultiplier: 1,
+          requireEvidence: true
         }
       }),
       messages: new FirebaseRepository<ServerMessage[]>(`${root}/messages`, []),
       activities: new FirebaseRepository<WorldActivity[]>(`${root}/activities`, []),
+      penalties: new FirebaseRepository<string[]>(`${root}/penalties`, []),
       globalGoal: new FirebaseRepository<GlobalGoal>(`${root}/goal`, { title: 'Viagem de Férias', targetEmeralds: 5000, currentEmeralds: 0 })
     };
   }

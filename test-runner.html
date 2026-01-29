@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>MineTask Test Runner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #eee;
+            padding: 2rem;
+        }
+
+        .test-card {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-left: 5px solid #444;
+        }
+
+        .success {
+            border-left-color: #4caf50;
+            color: #81c784;
+        }
+
+        .failure {
+            border-left-color: #f44336;
+            color: #e57373;
+        }
+
+        h1 {
+            color: #58bf58;
+            border-bottom: 2px solid #58bf58;
+            padding-bottom: 0.5rem;
+        }
+
+        .log-item {
+            margin: 0.5rem 0;
+            font-family: 'VT323', monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 MineTask Test Runner</h1>
+    <div id="results"></div>
+
+    <script>
+        // Lógica do Jogo (Mockada para o teste)
+        const AVATARS_BY_LEVEL = [
+            { level: 1, emoji: "👕", name: "Steve (Novato)" },
+            { level: 3, emoji: "🟤", name: "Couro (Explorador)" },
+            { level: 5, emoji: "⚪", name: "Ferro (Guerreiro)" },
+            { level: 10, emoji: "🟡", name: "Ouro (Veterano)" },
+            { level: 20, emoji: "💎", name: "Diamante (Mestre)" },
+            { level: 50, emoji: "🟣", name: "Netherite (Lenda)" }
+        ];
+
+        class GameEngine {
+            static getAvatarForLevel(level) {
+                return AVATARS_BY_LEVEL.slice().reverse().find(a => level >= a.level) || AVATARS_BY_LEVEL[0];
+            }
+
+            static calculateLevelUp(profile, task) {
+                const xpGained = task.emeralds || 0;
+                const newEmeralds = profile.emeralds + (task.emeralds || 0);
+                const newDiamonds = profile.diamonds + (task.diamonds || 0);
+
+                let currentExperience = profile.experience + xpGained;
+                let currentLevel = profile.level;
+
+                // Curva de XP: Nível * Nível * 50
+                const getXpThreshold = (lvl) => lvl * lvl * 50;
+
+                while (currentExperience >= getXpThreshold(currentLevel)) {
+                    currentExperience -= getXpThreshold(currentLevel);
+                    currentLevel++;
+                }
+
+                const avatarData = this.getAvatarForLevel(currentLevel);
+
+                return {
+                    ...profile,
+                    experience: currentExperience,
+                    level: currentLevel,
+                    emeralds: newEmeralds,
+                    diamonds: newDiamonds,
+                    rank: avatarData.name
+                };
+            }
+        }
+
+        const resultsDiv = document.getElementById('results');
+
+        function logTest(success, message) {
+            const div = document.createElement('div');
+            div.className = `test-card ${success ? 'success' : 'failure'}`;
+            div.innerHTML = `<strong>${success ? '✅ PASSED' : '❌ FAILED'}</strong>: ${message}`;
+            resultsDiv.appendChild(div);
+        }
+
+        function runTests() {
+            try {
+                const mockProfile = { experience: 0, level: 1, emeralds: 0, diamonds: 0, rank: 'Novato' };
+
+                // Teste 1: Ganho de Esmeraldas e XP
+                // No nível 1, precisa de 1*1*50 = 50 XP
+                const task1 = { emeralds: 40 };
+                let result = GameEngine.calculateLevelUp(mockProfile, task1);
+                logTest(result.emeralds === 40, "Criança ganha 40 moedas.");
+                logTest(result.level === 1 && result.experience === 40, "Permanece no nível 1 com 40/50 XP.");
+
+                // Teste 2: Level Up
+                // Com mais 20 (total 60), deve ir para o nível 2. XP sobra = 60 - 50 = 10.
+                const task2 = { emeralds: 20 };
+                result = GameEngine.calculateLevelUp(result, task2);
+                logTest(result.level === 2, "Sobe para o nível 2 ao bater 50 XP.");
+                logTest(result.experience === 10, "XP residual (10) mantido corretamente.");
+
+                // Teste 3: Ranking Dinâmico (Multi-level rápido)
+                // Para atingir nível 50 com a curva n^2 * 50, precisamos de aprox. 2.100.000 XP.
+                // Simulando uma recompensa de "Modo Deus"
+                const epicResult = GameEngine.calculateLevelUp(mockProfile, { emeralds: 2100000 });
+                logTest(epicResult.level >= 50, `Subiu para o nível ${epicResult.level} com XP épico.`);
+                logTest(epicResult.rank === "Netherite (Lenda)", "Desbloqueou rank Netherite.");
+
+            } catch (e) {
+                logTest(false, "Erro crítico durante os testes: " + e.message);
+            }
+        }
+
+        runTests();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,17 @@
+{
+    "name": "MineTask: Adventure Edition",
+    "short_name": "MineTask",
+    "description": "Transformando a rotina em uma aventura épica!",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#72b6ff",
+    "theme_color": "#5fb44d",
+    "icons": [
+        {
+            "src": "https://img.icons8.com/color/512/minecraft-main-character.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

@@ -7,7 +7,7 @@ O MineTask adota uma arquitetura **Client-Serverless** utilizando React no clien
 ## 📂 Estrutura de Diretórios
 
 ```
-/src
+/               # Raiz do projeto
   /components     # Componentes de UI (Burros e Inteligentes)
     /ChildDashboard.tsx  # Interface da Criança (Inventário, Missões)
     /ParentPanel.tsx     # Interface dos Pais (Gestão, Aprovação)
@@ -34,7 +34,7 @@ Para evitar acoplamento direto dos componentes com a API do Firebase, utilizamos
 Ao invés de espalhar `useEffect` e `firebase.on()` por vários componentes, todo o estado do jogo é gerenciado por este Hook.
 *   **Inputs**: `familyId`.
 *   **Outputs**: Objeto `data` (tarefas, perfil, configurações) e objeto `actions` (funções para modificar o estado: `addTask`, `completeTask`, `buyReward`).
-*   **Logica**: Aqui residem as regras de validação (ex: "Tem saldo suficiente para comprar?", "O nível é suficiente para este item?").
+*   **Logica**: Aqui residem as regras de validação, cálculo de XP variável (bônus noturno), gestão de HP e o sistema de **Daily Reset** que verifica inconsistências temporais ao iniciar a sessão.
 
 ### 3. Otimização de Imagens (`services/image-utils.ts`)
 Como o Realtime Database tem limites e custos por banda, **não enviamos imagens brutas**.
@@ -66,6 +66,9 @@ families: {
     "settings": {
       "pin": "1234"
     },
+    "messages": [
+      { "id": "m1", "text": "Boa sorte na missão!", "sender": "parent" }
+    ],
     "activities": [ ...logs... ]
   }
 }

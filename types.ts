@@ -36,6 +36,7 @@ export interface Task {
   steps: TaskStep[];
   durationMinutes?: number;
   parentFeedback?: string;
+  recurrence?: 'daily' | 'none';
 }
 
 export interface Reward {
@@ -45,7 +46,7 @@ export interface Reward {
   cost: number;
   currency: 'emerald' | 'diamond';
   icon: string;
-  type: 'block' | 'outfit' | 'real_life';
+  type: 'block' | 'outfit' | 'real_life' | 'potion';
   blockColor?: string;
 }
 
@@ -94,6 +95,7 @@ export interface SystemSettings {
   parentPin: string;
   familyName: string;
   rules: ServerRules;
+  lastReset?: string; // YYYY-MM-DD
 }
 
 export interface ServerMessage {
@@ -106,7 +108,7 @@ export interface ServerMessage {
 
 export interface WorldActivity {
   id?: string;
-  type: 'TASK_DONE' | 'ITEM_BOUGHT' | 'LEVEL_UP' | 'MANUAL_ADJUST' | 'TASK_APPROVED' | 'TASK_FAILED';
+  type: 'TASK_DONE' | 'ITEM_BOUGHT' | 'LEVEL_UP' | 'MANUAL_ADJUST' | 'TASK_APPROVED' | 'TASK_FAILED' | 'SYSTEM_RESET';
   user: string;
   detail: string;
   timestamp: number;

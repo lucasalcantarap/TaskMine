@@ -13,14 +13,18 @@ O **MineTask** é uma aplicação web progressiva (PWA) gamificada, projetada pa
 *   **Gamificação Visual**: Interface vibrante ("Plastic Voxel") com avatares que evoluem (de Camiseta a Armadura de Netherite).
 *   **Sistema de Provas**: Envio de fotos ou desenhos para comprovar que a tarefa foi feita.
 *   **Feedback Imediato**: Sons de sucesso, ganho de XP e barras de progresso visuais.
-*   **Modo Construtor**: Um editor de pixel art integrado onde a criança gasta seus recursos para construir seu próprio mundo.
-*   **Loja de Recompensas**: Troca de moedas virtuais por blocos de construção ou prêmios reais (ex: "Noite da Pizza").
+*   **Modo Construtor Avançado**: Editor de pixel art com ferramenta de balde (flood fill), preview de blocos e sons de construção.
+*   **Loja de Recompensas**: Troca de moedas virtuais por blocos de construção ou poções de cura (HP).
+*   **Mensagens Master**: Recebimento de incentivos em tempo real através de um letreiro (marquee) no HUD.
+*   **Progressão Dinâmica**: Sistema de níveis com avatares evolutivos e recompensas variáveis por dificuldade.
 
 ### 👑 Para os Mestres (Pais)
 *   **Painel de Controle (Dungeon Master)**: Interface administrativa para criar missões e gerenciar a economia do jogo.
-*   **Ciclo de Aprovação**: As tarefas não somem sozinhas; os pais aprovam ou rejeitam as evidências enviadas.
+*   **Ciclo de Aprovação**: As tarefas não somem sozinhas; os pais aprovam ou rejeitam as evidências enviadas com feedback personalizado.
+*   **Master Messaging**: Envio de mensagens curtas de incentivo que aparecem instantaneamente para o herói.
+*   **Daily Reset & Penalidades**: Sistema que aplica penalidade de HP para tarefas não concluídas do dia anterior, incentivando a consistência.
 *   **Modo Combo**: Ferramenta rápida para criar rotinas inteiras (ex: "Rotina Matinal" cria 5 tarefas de uma vez).
-*   **Ajustes Manuais**: Poder de "Deus" para dar bônus de XP ou aplicar penalidades de HP em casos comportamentais.
+*   **Ajustes Manuais**: Poder de administrador para curar o herói, dar bônus de XP ou moedas extras.
 
 ---
 
@@ -36,8 +40,16 @@ O **MineTask** é uma aplicação web progressiva (PWA) gamificada, projetada pa
 
 ---
 
-## 🚀 Como Rodar o Projeto
+## 🚀 Como Rodar e Fazer Deploy
 
+### 1. No Vercel (Recomendado)
+Para rodar online rapidamente:
+1. Suba este código para um repositório no **GitHub**.
+2. No painel do **Vercel**, conecte o repositório.
+3. Adicione as variáveis de ambiente (conforme seção abaixo) nas configurações do projeto no Vercel.
+4. O Vercel detectará automaticamente o Vite e fará o build (`npm run build`).
+
+### 2. Localmente
 ### Pré-requisitos
 *   Node.js 18 ou superior.
 *   Conta no Firebase (Plano Spark gratuito serve).

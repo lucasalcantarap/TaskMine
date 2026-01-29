@@ -1,0 +1,21 @@
+{
+    "rules": {
+        "families": {
+            "$familyId": {
+                ".read": "true",
+                ".write": "true",
+                "settings": {
+                    "parentPin": {
+                        ".validate": "newData.isString() && newData.val().length >= 4"
+                    }
+                },
+                "tasks": {
+                    ".indexOn": [
+                        "status",
+                        "timeOfDay"
+                    ]
+                }
+            }
+        }
+    }
+}

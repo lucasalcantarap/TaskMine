@@ -11,7 +11,7 @@ export const AVATARS_BY_LEVEL = [
 ];
 
 export class GameEngine {
-  
+
   static getAvatarForLevel(level: number) {
     // Encontra o avatar com o maior nível que seja menor ou igual ao nível atual
     return AVATARS_BY_LEVEL.slice().reverse().find(a => level >= a.level) || AVATARS_BY_LEVEL[0];
@@ -22,19 +22,20 @@ export class GameEngine {
    */
   static calculateLevelUp(profile: UserProfile, task: Task): UserProfile {
     // 1. Adicionar recompensas
-    const xpGained = task.emeralds || 0; 
+    const xpGained = task.emeralds || 0;
     const newEmeralds = profile.emeralds + (task.emeralds || 0);
     const newDiamonds = profile.diamonds + (task.diamonds || 0);
 
     // 2. Calcular XP acumulado
     let currentExperience = profile.experience + xpGained;
     let currentLevel = profile.level;
-    const xpForNextLevel = currentLevel * 100;
+    // 3. Verificar Level Up (Multi-level)
+    // Curva de XP: Nível * Nível * 50 (mais desafiador a cada nível)
+    const getXpThreshold = (lvl: number) => lvl * lvl * 50;
 
-    // 3. Verificar Level Up
-    if (currentExperience >= xpForNextLevel) {
+    while (currentExperience >= getXpThreshold(currentLevel)) {
+      currentExperience -= getXpThreshold(currentLevel);
       currentLevel++;
-      currentExperience = currentExperience - xpForNextLevel;
     }
 
     // 4. Atualizar Rank baseado no nível
